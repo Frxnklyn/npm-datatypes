@@ -94,7 +94,7 @@ Wichtige Funktionen:
 
 ## Tabelle
 
-`TableDataTypeInterface` arbeitet mit `TableRow[]`.
+`TableDataTypeInterface` arbeitet mit serialisiertem Tabelleninhalt als `string` und bietet Tabellenzugriff ueber Header, Rows und Records.
 
 Wichtige Typen:
 
@@ -107,13 +107,17 @@ Wichtige Funktionen:
 - `getHeaders()`
 - `setHeaders(headers)`
 - `hasHeaders()`
+- `getRowsRaw()`
 - `getRows()`
 - `setRows(rows)`
+- `addRowArray(row)`
+- `addRowObject(row, autoExtendHeaders)`
 - `addRow(row)`
 - `addRows(rows)`
 - `getRow(index)`
 - `updateRow(index, row)`
 - `removeRow(index)`
+- `clearRows()`
 - `getCell(rowIndex, column)`
 - `setCell(rowIndex, column, value)`
 - `toRecords()`
