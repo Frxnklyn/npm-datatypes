@@ -144,12 +144,9 @@ Wichtige Funktionen:
 
 - `getTitle()`
 - `setTitle(title)`
-- `getBody()`
-- `setBody(content)`
-- `appendBody(content)`
+- `setBodyHtml(rawHtml)`
+- `appendBodyRawHtml(rawHtml)`
 - `addElement(tagName, content, attributes)`
-- `removeElement(selector)`
-- `setAttribute(selector, name, value)`
 
 ## Nutzung
 
