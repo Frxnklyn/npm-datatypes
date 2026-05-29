@@ -1,4 +1,4 @@
-# npm-datatypes
+# @frxnklyn/datatypes
 
 Reine TypeScript-Interfaces und Typen fuer wiederverwendbare Inhalts-DataTypes.
 
@@ -157,7 +157,7 @@ import type {
   JsonValue,
   TextDataTypeInterface,
   TableDataTypeInterface,
-} from "npm-datatypes";
+} from "@frxnklyn/datatypes";
 ```
 
 ## Build

@@ -1,5 +1,5 @@
 {
-  "name": "npm-datatypes",
+  "name": "@frxnklyn/datatypes",
   "version": "0.1.0",
   "description": "Shared TypeScript interfaces and content data types.",
   "type": "module",
