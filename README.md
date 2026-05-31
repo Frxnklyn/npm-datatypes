@@ -84,6 +84,7 @@ Wichtige Funktionen:
 - `push(data)`
 - `addJson(content)`
 - `addArray(content)`
+- `changeToJson()`
 - `get(index)`
 - `set(index, value)`
 - `remove(index)`
