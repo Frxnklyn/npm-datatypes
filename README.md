@@ -13,6 +13,7 @@ src/
     index.ts
   json/
     JsonTypes.ts
+    JsonArrayInterface.ts
     JsonDataTypeInterface.ts
     KeyDataTypeInterface.ts
     index.ts
@@ -74,6 +75,20 @@ Zusatzfunktionen:
 - `getName()`
 - `getValue()`
 - `delete()`
+
+`JsonArrayInterface` arbeitet mit `JsonArray` und kapselt die Array-spezifischen Funktionen.
+
+Wichtige Funktionen:
+
+- `add(data)`
+- `push(data)`
+- `addJson(content)`
+- `addArray(content)`
+- `get(index)`
+- `set(index, value)`
+- `remove(index)`
+- `getLength()`
+- `isArray()`
 
 ## Text
 
@@ -153,6 +168,7 @@ Wichtige Funktionen:
 ```ts
 import type {
   CommonDataTypeInterface,
+  JsonArrayInterface,
   JsonDataTypeInterface,
   KeyDataTypeInterface,
   JsonValue,

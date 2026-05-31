@@ -1,4 +1,5 @@
 import type { CommonDataTypeInterface } from "../common/index.js";
+import type { JsonArrayInterface } from "./JsonArrayInterface.js";
 import type { JsonValue } from "./JsonTypes.js";
 import type { KeyDataTypeInterface } from "./KeyDataTypeInterface.js";
 
@@ -10,7 +11,7 @@ export interface JsonDataTypeInterface extends CommonDataTypeInterface<JsonValue
   removeKey(key: string): this;
 
   push(data: JsonValue): this;
-  changeToArray(): this;
+  changeToArray(): JsonArrayInterface;
   changeToJson(): this;
 
   getKeys(): string[];
