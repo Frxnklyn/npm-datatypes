@@ -4,3 +4,4 @@ export * from "./text/index.js";
 export * from "./table/index.js";
 export * from "./code/index.js";
 export * from "./html/index.js";
+export * from "./error/index.js";

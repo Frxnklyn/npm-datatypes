@@ -1,0 +1,3 @@
+[submodule ".agents/skills/ticket-workflow"]
+	path = .agents/skills/ticket-workflow
+	url = https://github.com/Frxnklyn/Codex-Ticket-Workflow.git
