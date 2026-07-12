@@ -33,12 +33,12 @@ src/
     HtmlDataTypeInterface.ts
     index.ts
   error/
+    ErrorDataTypeInterface.ts
     classes/
       AbstractError.ts
     interfaces/
       ErrorContextInterface.ts
       ErrorDataInterface.ts
-      ErrorInterface.ts
       ErrorOptionsInterface.ts
       ErrorReportSectionInterface.ts
     renderer/

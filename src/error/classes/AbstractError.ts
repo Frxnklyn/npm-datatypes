@@ -1,8 +1,8 @@
 import type { ErrorContextInterface } from "../interfaces/ErrorContextInterface.js";
 import type { ErrorDataInterface } from "../interfaces/ErrorDataInterface.js";
-import type { ErrorInterface } from "../interfaces/ErrorInterface.js";
 import type { ErrorOptionsInterface } from "../interfaces/ErrorOptionsInterface.js";
 import type { ErrorReportSectionInterface } from "../interfaces/ErrorReportSectionInterface.js";
+import type { ErrorDataTypeInterface } from "../ErrorDataTypeInterface.js";
 import { ErrorRenderer } from "../renderer/ErrorRenderer.js";
 import { ErrorCategory } from "../types/ErrorCategory.js";
 import { ErrorSeverity } from "../types/ErrorSeverity.js";
@@ -13,7 +13,7 @@ import { ErrorSeverity } from "../types/ErrorSeverity.js";
  * Concrete packages should extend this class with package-specific error names
  * and codes instead of defining shared domain errors in `@frxnklyn/datatypes`.
  */
-export abstract class AbstractError extends Error implements ErrorInterface {
+export abstract class AbstractError extends Error implements ErrorDataTypeInterface {
   public readonly code: string;
   public readonly severity: ErrorSeverity;
   public readonly category: ErrorCategory;
