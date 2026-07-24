@@ -72,6 +72,7 @@ src/
       index.ts
     index.ts
   error/
+    ErrorDataTypeInterface.ts
     classes/
       AbstractError.ts
     index.ts
@@ -243,7 +244,12 @@ import type {
 
 ## Fehler
 
-`AbstractError` ist eine minimale Grundlage fuer fachliche Fehlerklassen. Neben den normalen `Error`-Informationen stellt die Klasse einen Erstellungszeitpunkt bereit. Wird ein vorheriger Fehler uebergeben, bleiben dieser als `cause` und sein Stacktrace erhalten.
+`ErrorDataTypeInterface` stellt Name, Nachricht, Stacktrace und
+Erstellungszeitpunkt ueber klar benannte Getter bereit.
+`AbstractError` implementiert dieses Interface als minimale Grundlage fuer
+fachliche Fehlerklassen und bleibt gleichzeitig ein normaler nativer `Error`.
+Wird ein vorheriger Fehler uebergeben, bleiben dieser als `cause` und sein
+Stacktrace erhalten.
 
 ```ts
 import { AbstractError } from "@frxnklyn/datatypes";

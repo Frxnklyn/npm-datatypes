@@ -18,6 +18,10 @@ test("provides standard error information and a timestamp", () => {
   assert.equal(error.timestamp instanceof Date, true);
   assert.equal(typeof error.stack, "string");
   assert.match(error.stack, /^TestError: Test failed/);
+  assert.equal(error.getName(), error.name);
+  assert.equal(error.getMessage(), error.message);
+  assert.equal(error.getTimestamp(), error.timestamp);
+  assert.equal(error.getStack(), error.stack);
 });
 
 test("keeps a previous native error and uses its stack", () => {
@@ -27,6 +31,7 @@ test("keeps a previous native error and uses its stack", () => {
   assert.equal(error.cause, cause);
   assert.equal(error.stack, cause.stack);
   assert.equal(error.timestamp instanceof Date, true);
+  assert.equal(error.getStack(), cause.stack);
 });
 
 test("keeps the original timestamp through an AbstractError chain", () => {
