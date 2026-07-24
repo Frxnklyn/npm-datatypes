@@ -1,5 +1,5 @@
 import type { HTMLElementAttributesFor } from "./attributes/HTMLElementAttributeMapInterface.js";
-import type { HTMLElementTagName } from "./attributes/HTMLElementTagName.js";
+import type { HTMLBodyElementTagName } from "./body/HTMLBodyEditorDataTypeInterface.js";
 
 export interface HtmlEditorDataTypeInterface {
   changeContent(newContent: string): this;
@@ -7,7 +7,7 @@ export interface HtmlEditorDataTypeInterface {
   setBodyHtml(rawHtml: string): this;
   appendBodyRawHtml(rawHtml: string): this;
 
-  addElement<TTagName extends HTMLElementTagName>(
+  addElement<TTagName extends HTMLBodyElementTagName>(
     tagName: TTagName,
     content?: string,
     attributes?: HTMLElementAttributesFor<TTagName>,

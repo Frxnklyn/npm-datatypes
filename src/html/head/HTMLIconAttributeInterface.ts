@@ -1,9 +1,7 @@
-import type { HTMLElementAttributeInterface } from "../attributes/HTMLElementAttributeInterface.js";
-
 /**
  * Attributes used to create a browser tab icon through `link rel="icon"`.
  */
-export interface HTMLIconAttributeInterface extends HTMLElementAttributeInterface {
+export interface HTMLIconAttributeInterface {
   href: string;
   type?: string;
   sizes?: string;

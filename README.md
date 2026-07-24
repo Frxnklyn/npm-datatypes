@@ -43,8 +43,6 @@ src/
       HTMLContentDataTypeInterfaces.ts
       HTMLButtonDataTypeInterface.ts
       HTMLButtonEditorDataTypeInterface.ts
-      HTMLScriptDataTypeInterface.ts
-      HTMLScriptEditorDataTypeInterface.ts
       HTMLDivDataTypeInterface.ts
       HTMLDivEditorDataTypeInterface.ts
       index.ts
@@ -54,8 +52,23 @@ src/
       index.ts
     head/
       HTMLIconAttributeInterface.ts
+      HTMLIconDataTypeInterface.ts
+      HTMLHeadContentDataTypeInterfaces.ts
+      HTMLHeadEditorOptionsInterfaces.ts
       HTMLHeadDataTypeInterface.ts
       HTMLHeadEditorDataTypeInterface.ts
+      index.ts
+    script/
+      HTMLScriptLinkDataTypeInterface.ts
+      HTMLScriptLinkEditorDataTypeInterface.ts
+      HTMLScriptDataTypeInterface.ts
+      HTMLScriptEditorDataTypeInterface.ts
+      index.ts
+    style/
+      HTMLStyleLinkDataTypeInterface.ts
+      HTMLStyleLinkEditorDataTypeInterface.ts
+      HTMLStyleDataTypeInterface.ts
+      HTMLStyleEditorDataTypeInterface.ts
       index.ts
     index.ts
   error/
@@ -208,7 +221,9 @@ Wichtige Editor-Funktionen:
 
 `HTMLElementDataTypeInterface` stellt nur lesenden Zugriff auf gemeinsame Inhalte und Attribute eines HTML-Elements bereit. Schreibende Methoden liegen getrennt in `HTMLElementEditorDataTypeInterface`. Konkrete Interfaces erweitern jeweils genau eines dieser Basis-Interfaces ohne generische Parameter. Tagnamen werden in den konkreten Readern eingeschraenkt; tagspezifische Attributobjekte werden beim Erstellen oder Einfuegen eines Elements exakt typisiert.
 
-Der generische Attributzugriff bleibt als Fallback fuer dynamische Auswertung erhalten. Der Body wird als geordnete Elementliste gelesen und ueber indexbasierte Einfuege-, Ersetzungs-, Verschiebe- und Loeschmethoden bearbeitet. Der Head bietet dagegen konkrete Zugriffe auf Titel, Links, Metadaten, Skripte, Styles und Templates.
+Der generische Attributzugriff bleibt als Fallback fuer dynamische Auswertung erhalten. Der Body wird als geordnete Inhaltsliste gelesen und ueber indexbasierte Einfuege-, Ersetzungs-, Verschiebe- und Loeschmethoden bearbeitet. Externe Skripte werden dabei ueber `HTMLScriptLinkDataTypeInterface` mit ihrer Source beschrieben; eingebettete Skripte verwenden `HTMLScriptDataTypeInterface` mit ihrem Content. Externe und eingebettete Styles werden entsprechend durch `HTMLStyleLinkDataTypeInterface` und `HTMLStyleDataTypeInterface` getrennt.
+
+Der Head bietet konkrete Zugriffe auf Titel, Links, Metadaten, Skripte, Styles und Templates. Diese speziellen Dokumentdaten erben nicht vom allgemeinen `HTMLElementDataTypeInterface`, sondern stellen nur die fuer ihren Zweck relevanten Werte bereit.
 
 Jedes HTML-Element stellt ueber `getCode()` seinen vollstaendig serialisierten HTML-Code bereit. `HtmlDataTypeInterface.getCode()` liefert das gesamte Dokument; `getDoctype()`, `getHead()` und `getBody()` erlauben den strukturierten Zugriff auf seine Hauptbestandteile.
 

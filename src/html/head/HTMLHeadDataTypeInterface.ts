@@ -3,11 +3,14 @@ import type {
   HTMLLinkDataTypeInterface,
   HTMLMetaDataTypeInterface,
   HTMLNoScriptDataTypeInterface,
-  HTMLStyleDataTypeInterface,
   HTMLTemplateDataTypeInterface,
   HTMLTitleDataTypeInterface,
-} from "../attributes/HTMLElementSpecificDataTypeInterfaces.js";
-import type { HTMLScriptDataTypeInterface } from "../attributes/HTMLScriptDataTypeInterface.js";
+} from "./HTMLHeadContentDataTypeInterfaces.js";
+import type { HTMLIconDataTypeInterface } from "./HTMLIconDataTypeInterface.js";
+import type { HTMLScriptDataTypeInterface } from "../script/HTMLScriptDataTypeInterface.js";
+import type { HTMLScriptLinkDataTypeInterface } from "../script/HTMLScriptLinkDataTypeInterface.js";
+import type { HTMLStyleDataTypeInterface } from "../style/HTMLStyleDataTypeInterface.js";
+import type { HTMLStyleLinkDataTypeInterface } from "../style/HTMLStyleLinkDataTypeInterface.js";
 
 /**
  * Provides read access to an HTML document head.
@@ -20,11 +23,14 @@ export interface HTMLHeadDataTypeInterface {
   getCharset(): string | undefined;
   getDescription(): string | undefined;
   getViewport(): string | undefined;
-  getIcon(): HTMLLinkDataTypeInterface | undefined;
-  getIcons(): ReadonlyArray<HTMLLinkDataTypeInterface>;
+  getIcon(): HTMLIconDataTypeInterface | undefined;
+  getIcons(): ReadonlyArray<HTMLIconDataTypeInterface>;
   getLinks(): ReadonlyArray<HTMLLinkDataTypeInterface>;
   getMetaElements(): ReadonlyArray<HTMLMetaDataTypeInterface>;
+  getScriptLinks(): ReadonlyArray<HTMLScriptLinkDataTypeInterface>;
   getScripts(): ReadonlyArray<HTMLScriptDataTypeInterface>;
+  getScript(index: number): HTMLScriptDataTypeInterface | undefined;
+  getStyleLinks(): ReadonlyArray<HTMLStyleLinkDataTypeInterface>;
   getStyles(): ReadonlyArray<HTMLStyleDataTypeInterface>;
   getTemplates(): ReadonlyArray<HTMLTemplateDataTypeInterface>;
   getNoScripts(): ReadonlyArray<HTMLNoScriptDataTypeInterface>;

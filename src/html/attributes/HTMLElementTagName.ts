@@ -115,3 +115,12 @@ export type HTMLElementTagName =
   | "var"
   | "video"
   | "wbr";
+
+/**
+ * Element names represented by the general HTMLElement data type.
+ * Document structure and external resources have dedicated interfaces.
+ */
+export type HTMLStandardElementTagName = Exclude<
+  HTMLElementTagName,
+  "html" | "head" | "body" | "base" | "link" | "meta" | "script" | "style" | "title"
+>;

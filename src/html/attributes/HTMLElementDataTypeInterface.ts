@@ -1,11 +1,11 @@
 import type { HTMLElementAttributeInterface } from "./HTMLElementAttributeInterface.js";
-import type { HTMLElementTagName } from "./HTMLElementTagName.js";
+import type { HTMLStandardElementTagName } from "./HTMLElementTagName.js";
 
 /**
  * Provides access to the content and attributes of an HTML element.
  */
 export interface HTMLElementDataTypeInterface {
-  getTagName(): HTMLElementTagName;
+  getTagName(): HTMLStandardElementTagName;
   getContent(): string;
   getCode(): string;
 

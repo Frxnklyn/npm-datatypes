@@ -4,16 +4,8 @@ export interface HTMLAnchorDataTypeInterface extends HTMLElementDataTypeInterfac
   getTagName(): "a";
 }
 
-export interface HTMLBaseDataTypeInterface extends HTMLElementDataTypeInterface {
-  getTagName(): "base";
-}
-
 export interface HTMLImageDataTypeInterface extends HTMLElementDataTypeInterface {
   getTagName(): "img";
-}
-
-export interface HTMLLinkDataTypeInterface extends HTMLElementDataTypeInterface {
-  getTagName(): "link";
 }
 
 export interface HTMLInputDataTypeInterface extends HTMLElementDataTypeInterface {
@@ -48,28 +40,8 @@ export interface HTMLSourceDataTypeInterface extends HTMLElementDataTypeInterfac
   getTagName(): "source";
 }
 
-export interface HTMLStyleDataTypeInterface extends HTMLElementDataTypeInterface {
-  getTagName(): "style";
-}
-
-export interface HTMLTitleDataTypeInterface extends HTMLElementDataTypeInterface {
-  getTagName(): "title";
-}
-
-export interface HTMLTemplateDataTypeInterface extends HTMLElementDataTypeInterface {
-  getTagName(): "template";
-}
-
-export interface HTMLNoScriptDataTypeInterface extends HTMLElementDataTypeInterface {
-  getTagName(): "noscript";
-}
-
 export interface HTMLIFrameDataTypeInterface extends HTMLElementDataTypeInterface {
   getTagName(): "iframe";
-}
-
-export interface HTMLMetaDataTypeInterface extends HTMLElementDataTypeInterface {
-  getTagName(): "meta";
 }
 
 export interface HTMLLabelDataTypeInterface extends HTMLElementDataTypeInterface {

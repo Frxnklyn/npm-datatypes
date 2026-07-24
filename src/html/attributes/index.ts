@@ -8,7 +8,5 @@ export * from "./HTMLElementSpecificDataTypeInterfaces.js";
 export * from "./HTMLContentDataTypeInterfaces.js";
 export * from "./HTMLButtonDataTypeInterface.js";
 export * from "./HTMLButtonEditorDataTypeInterface.js";
-export * from "./HTMLScriptDataTypeInterface.js";
-export * from "./HTMLScriptEditorDataTypeInterface.js";
 export * from "./HTMLDivDataTypeInterface.js";
 export * from "./HTMLDivEditorDataTypeInterface.js";

@@ -4,3 +4,5 @@ export * from "./HtmlEditorDataTypeInterface.js";
 export * from "./attributes/index.js";
 export * from "./body/index.js";
 export * from "./head/index.js";
+export * from "./script/index.js";
+export * from "./style/index.js";
