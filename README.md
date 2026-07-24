@@ -33,19 +33,8 @@ src/
     HtmlDataTypeInterface.ts
     index.ts
   error/
-    ErrorDataTypeInterface.ts
     classes/
       AbstractError.ts
-    interfaces/
-      ErrorContextInterface.ts
-      ErrorDataInterface.ts
-      ErrorOptionsInterface.ts
-      ErrorReportSectionInterface.ts
-    renderer/
-      ErrorRenderer.ts
-    types/
-      ErrorCategory.ts
-      ErrorSeverity.ts
     index.ts
   index.ts
 ```
@@ -193,54 +182,28 @@ import type {
 } from "@frxnklyn/datatypes";
 ```
 
-## Strukturierte Fehler
+## Fehler
 
-`AbstractError` stellt eine gemeinsame Grundlage fuer strukturierte Fehler bereit. Fachliche Fehlerklassen bleiben in dem Package, in dem sie entstehen.
+`AbstractError` ist eine minimale Grundlage fuer fachliche Fehlerklassen. Neben den normalen `Error`-Informationen stellt die Klasse einen Erstellungszeitpunkt bereit. Wird ein vorheriger Fehler uebergeben, bleiben dieser als `cause` und sein Stacktrace erhalten.
 
 ```ts
-import {
-  AbstractError,
-  ErrorCategory,
-  ErrorSeverity,
-} from "@frxnklyn/datatypes";
+import { AbstractError } from "@frxnklyn/datatypes";
 
 export class FileWriteError extends AbstractError {
-  public constructor(path: string, cause?: unknown) {
-    super({
-      code: "FILE_WRITE_FAILED",
-      message: `Die Datei "${path}" konnte nicht geschrieben werden.`,
-      category: ErrorCategory.FILESYSTEM,
-      severity: ErrorSeverity.ERROR,
-      cause,
-      context: {
-        path,
-        operation: "write",
-      },
-    });
+  public constructor(path: string, cause?: Error) {
+    super(`Die Datei "${path}" konnte nicht geschrieben werden.`, cause);
   }
 }
 
 const originalError = new Error("Permission denied");
 const error = new FileWriteError("./data/config.json", originalError);
 
-console.log(error.toJSON());
-console.log(error.toMarkdown());
-console.log(error.toHTML());
+console.log(error.name);
+console.log(error.message);
+console.log(error.timestamp);
+console.log(error.stack);
+console.log(error.cause);
 ```
-
-Eigene Packages koennen zusaetzliche Kategorien definieren, ohne `@frxnklyn/datatypes` zu erweitern:
-
-```ts
-import { ErrorCategory } from "@frxnklyn/datatypes";
-
-export const AppErrorCategory = {
-  ...ErrorCategory,
-  TRANSCRIPT: "transcript",
-  AUDIO: "audio",
-} as const;
-```
-
-`category` akzeptiert sowohl die Standardwerte aus `ErrorCategory` als auch eigene String-Kategorien.
 
 ## Build
 
