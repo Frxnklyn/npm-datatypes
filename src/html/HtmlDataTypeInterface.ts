@@ -1,12 +1,12 @@
-import type { CommonDataTypeInterface } from "../common/index.js";
-import type { HtmlAttributes } from "./HtmlTypes.js";
+import type { HTMLBodyDataTypeInterface } from "./body/HTMLBodyDataTypeInterface.js";
+import type { HTMLHeadDataTypeInterface } from "./head/HTMLHeadDataTypeInterface.js";
 
-export interface HtmlDataTypeInterface extends CommonDataTypeInterface<string> {
+export interface HtmlDataTypeInterface {
+  getDoctype(): string;
+  getHead(): HTMLHeadDataTypeInterface;
+  getBody(): HTMLBodyDataTypeInterface;
+  getContent(): string;
+  getContentString(): string;
+  getCode(): string;
   getTitle(): string;
-  setTitle(title: string): this;
-
-  setBodyHtml(rawHtml: string): this;
-  appendBodyRawHtml(rawHtml: string): this;
-
-  addElement(tagName: string, content?: string, attributes?: HtmlAttributes): this;
 }

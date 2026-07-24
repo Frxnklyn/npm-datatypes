@@ -31,6 +31,32 @@ src/
   html/
     HtmlTypes.ts
     HtmlDataTypeInterface.ts
+    HtmlEditorDataTypeInterface.ts
+    attributes/
+      HTMLElementAttributeInterface.ts
+      HTMLElementSpecificAttributeInterfaces.ts
+      HTMLElementAttributeMapInterface.ts
+      HTMLElementTagName.ts
+      HTMLElementDataTypeInterface.ts
+      HTMLElementEditorDataTypeInterface.ts
+      HTMLElementSpecificDataTypeInterfaces.ts
+      HTMLContentDataTypeInterfaces.ts
+      HTMLButtonDataTypeInterface.ts
+      HTMLButtonEditorDataTypeInterface.ts
+      HTMLScriptDataTypeInterface.ts
+      HTMLScriptEditorDataTypeInterface.ts
+      HTMLDivDataTypeInterface.ts
+      HTMLDivEditorDataTypeInterface.ts
+      index.ts
+    body/
+      HTMLBodyDataTypeInterface.ts
+      HTMLBodyEditorDataTypeInterface.ts
+      index.ts
+    head/
+      HTMLIconAttributeInterface.ts
+      HTMLHeadDataTypeInterface.ts
+      HTMLHeadEditorDataTypeInterface.ts
+      index.ts
     index.ts
   error/
     classes/
@@ -49,7 +75,9 @@ Wichtige Funktionen:
 - `getContentString()`
 - `changeContent(newContent)`
 
-Alle konkreten DataType-Interfaces erweitern dieses Common-Interface mit ihrem jeweiligen Inhaltstyp.
+Die allgemeinen Inhalts-DataTypes erweitern dieses Common-Interface mit ihrem
+jeweiligen Inhaltstyp. Die HTML-Interfaces trennen dagegen bewusst zwischen
+lesendem Zugriff und bearbeitenden Editor-Interfaces.
 
 ## JSON
 
@@ -158,15 +186,31 @@ Wichtige Funktionen:
 
 ## HTML
 
-`HtmlDataTypeInterface` arbeitet mit HTML-Inhalt als `string`.
+`HtmlDataTypeInterface` stellt den lesenden Zugriff auf ein vollständiges
+HTML-Dokument bereit. Änderungen werden getrennt über
+`HtmlEditorDataTypeInterface` beschrieben.
 
-Wichtige Funktionen:
+Wichtige Reader-Funktionen:
 
 - `getTitle()`
+- `getDoctype()`
+- `getHead()`
+- `getBody()`
+- `getContent()`
+- `getCode()`
+
+Wichtige Editor-Funktionen:
+
 - `setTitle(title)`
 - `setBodyHtml(rawHtml)`
 - `appendBodyRawHtml(rawHtml)`
 - `addElement(tagName, content, attributes)`
+
+`HTMLElementDataTypeInterface` stellt nur lesenden Zugriff auf gemeinsame Inhalte und Attribute eines HTML-Elements bereit. Schreibende Methoden liegen getrennt in `HTMLElementEditorDataTypeInterface`. Konkrete Interfaces erweitern jeweils genau eines dieser Basis-Interfaces ohne generische Parameter. Tagnamen werden in den konkreten Readern eingeschraenkt; tagspezifische Attributobjekte werden beim Erstellen oder Einfuegen eines Elements exakt typisiert.
+
+Der generische Attributzugriff bleibt als Fallback fuer dynamische Auswertung erhalten. Der Body wird als geordnete Elementliste gelesen und ueber indexbasierte Einfuege-, Ersetzungs-, Verschiebe- und Loeschmethoden bearbeitet. Der Head bietet dagegen konkrete Zugriffe auf Titel, Links, Metadaten, Skripte, Styles und Templates.
+
+Jedes HTML-Element stellt ueber `getCode()` seinen vollstaendig serialisierten HTML-Code bereit. `HtmlDataTypeInterface.getCode()` liefert das gesamte Dokument; `getDoctype()`, `getHead()` und `getBody()` erlauben den strukturierten Zugriff auf seine Hauptbestandteile.
 
 ## Nutzung
 
