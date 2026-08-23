@@ -34,6 +34,11 @@ src/
       FilterInterface.ts
       index.ts
     index.ts
+  excel/
+    ExcelDataTypeInterface.ts
+    ExcelSheetDataTypeInterface.ts
+    CellDataTypeInterface.ts
+    index.ts
   code/
     CodeTypes.ts
     CodeDataTypeInterface.ts
@@ -294,6 +299,104 @@ table.addRow([1, "Brooklyn", 23]);
 await table.dataSave();
 ```
 
+## Excel
+
+Die Excel-Domain beschreibt Workbooks, Sheets und Cells unabhängig von einer
+konkreten Excel-Datei oder Library. Sie verwendet lazy Referenzen: `getSheet()`,
+`getTable()`, `getCell()` und `asTable()` prüfen keine externe Ressource und
+führen keinen Read aus. Erst ein explizites `dataRead()` darf feststellen, dass
+ein Workbook oder Sheet nicht existiert beziehungsweise nicht lesbar ist.
+
+Wichtige Interfaces:
+
+- `ExcelDataTypeInterface`
+- `ExcelSheetDataTypeInterface`
+- `CellDataTypeInterface`
+
+Ein `ExcelSheetDataTypeInterface` ist ein Excel-Zellenraster und keine
+`TableDataTypeInterface`. Über `asTable()` bietet es eine alternative allgemeine
+Table-Sicht auf dieselbe fachliche Sheet-Ressource. Dies ist keine Konvertierung
+oder unabhängige Kopie. `excel.getTable(sheetName)` ist der Convenience-Zugriff
+für `excel.getSheet(sheetName).asTable()`; Objektidentität und Caching sind nicht
+vorgeschrieben.
+
+```ts
+const sheet = excel.getSheet("Kunden");
+const cell = sheet.getCell("B4");
+const table = sheet.asTable();
+
+// Kein externer Read ist bis hier erfolgt.
+
+await sheet.dataRead();
+
+cell.getValue();
+
+sheet.setCell("B4", "Brooklyn");
+
+await sheet.dataSave();
+
+await table.dataRead();
+table.getRows();
+```
+
+`getSheets()` liefert nur bereits bekannte oder geladene Sheets in
+Workbook-Reihenfolge. `getSheet(nameOrIndex)` liefert dagegen immer eine lazy
+Referenz und niemals `undefined`. Bei einer namensbasierten Referenz kann
+`sheet.getIndex()` vor erfolgreichem `sheet.dataRead()` noch `undefined` sein.
+Ein nicht vorhandenes Sheet verursacht keinen Fehler in `getSheet()`, sondern
+darf erst beim expliziten Sheet- oder Table-Read fehlschlagen.
+
+Auch eine Cell-Position existiert konzeptionell unabhängig von ihrem Wert.
+`sheet.getCell("B4")` und `sheet.getCell(3, 1)` liefern deshalb immer eine
+`CellDataTypeInterface`-Referenz. Eine leere Cell wird durch `getValue() === null`
+und nicht durch eine fehlende Referenz dargestellt.
+
+Positionsbasierte Cell-Zugriffe verwenden nullbasierte Indizes. Damit entspricht
+`getCell(0, 0)` der Adresse A1 und `getCell(3, 1)` der Adresse B4. Die Adresse,
+der Row-Index und der Column-Index einer Cell müssen stets konsistent sein.
+`getCells()` liefert Cells in Row-major order: zuerst nach Row, innerhalb einer
+Row nach Column.
+
+```text
+A1, B1, C1, A2, B2, C2
+```
+
+Verbundene Cells werden direkt über `CellDataTypeInterface.isMerged()`
+gekennzeichnet. Alle normalen Zugriffe auf Position, Wert, Formel und Typ bleiben
+unabhängig vom Merge-Status verwendbar. Wie der verbundene Bereich intern
+repräsentiert wird, entscheidet die konkrete Excel-Implementierung.
+
+Cell-Werte verwenden `TableCellValue`, fachliche Cell-Typen verwenden
+`AttributeType` aus der Table-Domain. Excel-spezifische primitive Value- oder
+Type-Unions werden nicht parallel gepflegt. Formel, aktueller Wert und
+fachlicher Typ bleiben getrennt. Eine Cell kann beispielsweise gleichzeitig
+`hasFormula() === true`, über `getFormula()` den Ausdruck `=SUM(B2:B10)`, über
+`getValue()` das Ergebnis `428` und über `getType()` den Typ `"number"` liefern.
+Eine Formel wie `=A1` ist ebenfalls eine normale Formel und kein eigener
+Referenz- oder Cell-Typ.
+
+Das Modell unterscheidet drei Read-Ebenen:
+
+```ts
+// Vollständigen Workbook-Zustand und Workbook-Metadaten lesen.
+await excel.dataRead();
+
+// Eine konkrete Sheet-Ressource und ihre Cells lesen.
+const sheet = excel.getSheet("Kunden");
+await sheet.dataRead();
+
+// Dasselbe Sheet als Table unter Berücksichtigung der Table-Filter lesen.
+const table = excel.getTable("Kunden");
+table.addFilter(filter);
+await table.dataRead();
+```
+
+Filter gehören ausschließlich zur Table-Domain. Weder Workbook noch Sheet
+bieten eine Filter- oder Comparator-API. `excel.getTable("Kunden")` und
+`excel.getSheet("Kunden").asTable()` müssen fachlich dieselbe Sheet-Ressource
+repräsentieren. Wie Headers, Attributes, Rows und Columns aus dem Zellenraster
+abgeleitet werden, entscheidet die konkrete Excel-Implementierung.
+
 ## Code
 
 `CodeDataTypeInterface` arbeitet mit Quelltext als `string`.
@@ -351,6 +454,9 @@ import type {
   TableDataTypeInterface,
   RowDataTypeInterface,
   ColumnDataTypeInterface,
+  ExcelDataTypeInterface,
+  ExcelSheetDataTypeInterface,
+  CellDataTypeInterface,
 } from "@frxnklyn/datatypes";
 ```
 
