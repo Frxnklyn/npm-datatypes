@@ -341,15 +341,37 @@ table.getRows();
 
 `getSheets()` liefert nur bereits bekannte oder geladene Sheets in
 Workbook-Reihenfolge. `getSheet(nameOrIndex)` liefert dagegen immer eine lazy
-Referenz und niemals `undefined`. Bei einer namensbasierten Referenz kann
-`sheet.getIndex()` vor erfolgreichem `sheet.dataRead()` noch `undefined` sein.
-Ein nicht vorhandenes Sheet verursacht keinen Fehler in `getSheet()`, sondern
-darf erst beim expliziten Sheet- oder Table-Read fehlschlagen.
+Referenz und niemals `undefined`. Bei einer namensbasierten Referenz ist der Name
+bekannt, während `sheet.getIndex()` vor erfolgreichem Read noch `undefined` sein
+kann. Bei einer indexbasierten Referenz ist der Index bekannt, während
+`sheet.getName()` noch `undefined` sein kann. Ein nicht vorhandenes Sheet
+verursacht keinen Fehler in `getSheet()`, sondern darf erst beim expliziten
+Sheet- oder Table-Read fehlschlagen.
 
 Auch eine Cell-Position existiert konzeptionell unabhängig von ihrem Wert.
 `sheet.getCell("B4")` und `sheet.getCell(3, 1)` liefern deshalb immer eine
-`CellDataTypeInterface`-Referenz. Eine leere Cell wird durch `getValue() === null`
-und nicht durch eine fehlende Referenz dargestellt.
+`CellDataTypeInterface`-Referenz. `cell.isResolved()` unterscheidet eine noch
+nicht gelesene Referenz von einem bekannten Cell-Zustand. Vor der Auflösung
+liefert `getValue()` beziehungsweise `getType()` `undefined`. Nach der Auflösung
+bedeutet `getValue() === null`, dass die Cell tatsächlich leer ist.
+
+```ts
+const cell = sheet.getCell("B4");
+
+cell.isResolved();
+// false möglich
+
+cell.getValue();
+// undefined, solange der Zustand unbekannt ist
+
+await sheet.dataRead();
+
+cell.isResolved();
+// true
+
+cell.getValue();
+// TableCellValue; null bedeutet jetzt tatsächlich leer
+```
 
 Positionsbasierte Cell-Zugriffe verwenden nullbasierte Indizes. Damit entspricht
 `getCell(0, 0)` der Adresse A1 und `getCell(3, 1)` der Adresse B4. Die Adresse,
@@ -374,6 +396,17 @@ fachlicher Typ bleiben getrennt. Eine Cell kann beispielsweise gleichzeitig
 `getValue()` das Ergebnis `428` und über `getType()` den Typ `"number"` liefern.
 Eine Formel wie `=A1` ist ebenfalls eine normale Formel und kein eigener
 Referenz- oder Cell-Typ.
+
+Formeln werden auch beim Schreiben getrennt von normalen String-Werten
+behandelt:
+
+```ts
+sheet.setFormula("C4", "=A4*2");
+sheet.setFormula(3, 2, "=A4*2");
+```
+
+Beide Methoden verändern nur den aktuellen Sheet-Zustand. Persistiert wird erst
+durch `sheet.dataSave()` oder `excel.dataSave()`.
 
 Das Modell unterscheidet drei Read-Ebenen:
 

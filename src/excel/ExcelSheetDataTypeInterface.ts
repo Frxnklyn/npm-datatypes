@@ -15,13 +15,14 @@ export interface ExcelSheetDataTypeInterface {
   getExcel(): ExcelDataTypeInterface;
 
   /**
-   * Gibt den Namen dieses Sheets zurück.
+   * Gibt den Namen dieses Sheets zurück, sofern er bereits bekannt ist.
    *
-   * Der Name kann bereits vor dataRead() bekannt sein, beispielsweise wenn die
-   * Referenz über excel.getSheet("Kunden") erzeugt wurde. Die Methode löst
-   * keinen externen Read aus.
+   * Bei einer namensbasierten Referenz ist der Name bereits vor dataRead()
+   * bekannt. Bei einer indexbasierten Referenz kann er bis zur erfolgreichen
+   * Auflösung unbekannt sein; dann wird undefined zurückgegeben. Die Methode
+   * löst selbst keinen externen Read aus.
    */
-  getName(): string;
+  getName(): string | undefined;
 
   /**
    * Gibt den nullbasierten Index dieses Sheets innerhalb des Workbooks zurück.
@@ -93,6 +94,36 @@ export interface ExcelSheetDataTypeInterface {
   setCell(
     address: string,
     value: TableCellValue,
+  ): this;
+
+  /**
+   * Setzt die Formel einer Cell anhand ihres nullbasierten Row- und
+   * Column-Index.
+   *
+   * Die Position (0, 0) entspricht A1. Die Formel wird getrennt vom aktuellen
+   * Ergebniswert der Cell gespeichert und ist daher nicht als normaler
+   * String-Cell-Wert zu interpretieren. Die konkrete Implementierung erzeugt
+   * oder aktualisiert den Cell-Zustand. Die Methode führt keinen externen Save
+   * aus; gespeichert wird über dataSave() dieses Sheets oder des Workbooks.
+   */
+  setFormula(
+    rowIndex: number,
+    columnIndex: number,
+    formula: string,
+  ): this;
+
+  /**
+   * Setzt die Formel einer Cell anhand ihrer Excel-A1-Adresse.
+   *
+   * Die Formel wird getrennt vom aktuellen Ergebniswert der Cell gespeichert
+   * und ist daher nicht als normaler String-Cell-Wert zu interpretieren. Die
+   * konkrete Implementierung erzeugt oder aktualisiert den Cell-Zustand. Die
+   * Methode führt keinen externen Save aus; gespeichert wird über dataSave()
+   * dieses Sheets oder des Workbooks.
+   */
+  setFormula(
+    address: string,
+    formula: string,
   ): this;
 
   /**
