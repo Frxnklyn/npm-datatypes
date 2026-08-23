@@ -23,6 +23,16 @@ src/
   table/
     TableTypes.ts
     TableDataTypeInterface.ts
+    RowDataTypeInterface.ts
+    ColumnDataTypeInterface.ts
+    AttributeInterface.ts
+    RelationInterface.ts
+    DataReadInterface.ts
+    DataSaveInterface.ts
+    filter/
+      FilterTypes.ts
+      FilterInterface.ts
+      index.ts
     index.ts
   code/
     CodeTypes.ts
@@ -156,33 +166,133 @@ Wichtige Funktionen:
 
 ## Tabelle
 
-`TableDataTypeInterface` arbeitet mit serialisiertem Tabelleninhalt als `string` und bietet Tabellenzugriff ueber Header, Rows und Records.
+`TableDataTypeInterface` beschreibt den aktuell geladenen Tabellenzustand. Eine
+Table ist kein String-DataType und erweitert `CommonDataTypeInterface` nicht.
+Sie verbindet Headers, Attributes, Rows, Columns, Relations und Filter mit
+austauschbaren Read- und Save-Strategien.
 
 Wichtige Typen:
 
 - `TableCellValue`
-- `TableRow`
-- `TableRecord`
+- `AttributeType`
+- `RelationCardinality`
+- `RowDataTypeInterface`
+- `ColumnDataTypeInterface`
+- `AttributeInterface`
+- `RelationInterface`
+- `FilterInterface`
+- `FilterComparator`
+- `DataReadInterface`
+- `DataSaveInterface`
 
 Wichtige Funktionen:
 
+- `getName()`
 - `getHeaders()`
-- `setHeaders(headers)`
-- `hasHeaders()`
-- `getRowsRaw()`
+- `getAttributes()`
 - `getRows()`
-- `setRows(rows)`
-- `addRowArray(row)`
-- `addRowObject(row, autoExtendHeaders)`
-- `addRow(row)`
-- `addRows(rows)`
 - `getRow(index)`
-- `updateRow(index, row)`
-- `removeRow(index)`
-- `clearRows()`
-- `getCell(rowIndex, column)`
-- `setCell(rowIndex, column, value)`
-- `toRecords()`
+- `addRow(row)`
+- `getColumns()`
+- `getColumn(indexOrHeader)`
+- `getRelations()`
+- `addRelation(relation)`
+- `setRelations(relations)`
+- `getFilters()`
+- `addFilter(filter)`
+- `setFilters(filters)`
+- `clearFilters()`
+- `getComparator()`
+- `setComparator(comparator)`
+- `dataRead()`
+- `dataSave()`
+
+Eine Row ist die horizontale Sicht auf die Daten. Ihre Headers und Werte sind
+positionsgleich: `row.getHeaders()[i]` beschreibt immer
+`row.getValues()[i]`. Deshalb kann ein Wert sowohl mit
+`row.getValue(columnIndex)` als auch mit `row.getValue(header)` gelesen werden.
+
+Eine Column ist die vertikale Sicht auf dieselben Daten. Die Tabellenstruktur
+ist ebenfalls positionsgleich:
+
+```text
+table.getColumns()[i]
+table.getHeaders()[i]
+table.getAttributes()[i]
+```
+
+Diese drei Eintraege beschreiben dieselbe Column. Row- und Column-Zugriff
+muessen fuer gueltige Indizes fachlich denselben Cell-Wert repraesentieren:
+
+```ts
+table
+  .getRow(rowIndex)
+  ?.getValue(columnIndex);
+
+table
+  .getColumn(columnIndex)
+  ?.getValue(rowIndex);
+```
+
+`getRows()`, `getRow()`, `getColumns()` und `getColumn()` lesen nur den bereits
+geladenen Zustand und fuehren kein externes I/O aus. Filter und ihr Comparator
+werden vor dem Read gesetzt. `"and"` verlangt, dass alle Filter zutreffen;
+bei `"or"` reicht ein zutreffender Filter. Erst `dataRead()` liest asynchron
+mit diesem Filterzustand. `dataSave()` speichert den aktuellen Row-Zustand
+asynchron. Wie die konkrete Table ihre
+`DataReadInterface`- und `DataSaveInterface`-Strategien erhaelt, ist bewusst
+nicht Teil von `TableDataTypeInterface`; eine Implementierung kann sie etwa
+ueber ihren Constructor oder eine Factory erhalten.
+
+Eine Relation besteht aus einem linken Attribute, einem rechten Attribute und
+ihrer Kardinalitaet. `getCardinality()` beschreibt, wie die Rows der beiden
+ueber die Attributes erreichbaren Tables zueinander stehen:
+
+```text
+oneToOne    Left 1 -> 1 Right
+manyToOne   Left n -> 1 Right
+oneToMany   Left 1 -> n Right
+manyToMany  Left n -> n Right
+```
+
+Damit kann ein Consumer beispielsweise ableiten, ob auf der rechten Seite ein
+einzelner Wert oder eine Liste zu erwarten ist. Die Metadaten fuehren selbst
+keinen Join aus und laden keine verwandten Rows.
+
+Mit `getLeftAttribute()` und `getRightAttribute()` sind beide Endpunkte direkt
+als `AttributeInterface` erreichbar. Jedes Attribute kennt seine Table und
+seinen nullbasierten Index. Dadurch ist die zugehoerige Column ohne zusaetzliche
+Relation-Metadaten erreichbar:
+
+```ts
+const leftAttribute = relation.getLeftAttribute();
+const leftTable = leftAttribute.getTable();
+const leftColumn = leftTable.getColumn(leftAttribute.getIndex());
+
+const rightAttribute = relation.getRightAttribute();
+const rightTable = rightAttribute.getTable();
+const rightColumn = rightTable.getColumn(rightAttribute.getIndex());
+```
+
+`RowDataTypeInterface`, `ColumnDataTypeInterface` und `AttributeInterface`
+stellen ebenfalls jeweils `getTable()` bereit. Rows und Columns enthalten die
+Werte; ein Attribute bleibt die fachliche Schema-Beschreibung und fuehrt selbst
+keinen Read aus.
+
+```ts
+table.clearFilters();
+table.addFilter(filter);
+table.setComparator("or");
+
+await table.dataRead();
+
+const row = table.getRow(0);
+const column = table.getColumn("name");
+
+table.addRow([1, "Brooklyn", 23]);
+
+await table.dataSave();
+```
 
 ## Code
 
@@ -239,6 +349,8 @@ import type {
   JsonValue,
   TextDataTypeInterface,
   TableDataTypeInterface,
+  RowDataTypeInterface,
+  ColumnDataTypeInterface,
 } from "@frxnklyn/datatypes";
 ```
 
