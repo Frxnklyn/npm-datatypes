@@ -10,3 +10,4 @@ export * from "./DataReadInterface.js";
 export * from "./DataSaveInterface.js";
 
 export * from "./filter/index.js";
+export * from "./query/index.js";
