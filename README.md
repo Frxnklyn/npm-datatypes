@@ -33,6 +33,11 @@ src/
       FilterTypes.ts
       FilterInterface.ts
       index.ts
+    query/
+      TableQueryTypes.ts
+      TableQueryInterface.ts
+      TableQueryExecutorInterface.ts
+      index.ts
     index.ts
   excel/
     ExcelDataTypeInterface.ts
@@ -189,6 +194,12 @@ Wichtige Typen:
 - `FilterComparator`
 - `DataReadInterface`
 - `DataSaveInterface`
+- `TableQueryFilter`
+- `TableQueryGroup`
+- `TableQueryCondition`
+- `TableQueryOrder`
+- `TableQueryInterface`
+- `TableQueryExecutorInterface`
 
 Wichtige Funktionen:
 
@@ -298,6 +309,61 @@ table.addRow([1, "Brooklyn", 23]);
 
 await table.dataSave();
 ```
+
+### Table Queries
+
+`TableQueryInterface` beschreibt einen standardisierten, datenquellenunabhaengigen
+Query-Vertrag fuer Tabellen. Eine Query kann rekursiv verschachtelte Filter,
+Sortierungen sowie `offset` und `limit` enthalten. Die Query beschreibt nur das
+gewünschte Ergebnis; wie sie ausgefuehrt wird, bleibt der konkreten
+Implementierung ueberlassen.
+
+`TableQueryExecutorInterface` bildet den Standardprozess `Table + Query -> Table`
+ab. `execute()` darf die Eingabe-Table nicht veraendern und liefert den durch die
+Query erzeugten Tabellenzustand als eigene `TableDataTypeInterface` zurueck.
+
+```ts
+const query: TableQueryInterface = {
+  where: {
+    comparator: "and",
+    conditions: [
+      {
+        attribute: "season",
+        operator: "equals",
+        value: "2032/33",
+      },
+      {
+        comparator: "or",
+        conditions: [
+          {
+            attribute: "club",
+            operator: "equals",
+            value: "Barcelona",
+          },
+          {
+            attribute: "club",
+            operator: "equals",
+            value: "Real Madrid",
+          },
+        ],
+      },
+    ],
+  },
+  orderBy: [
+    {
+      attribute: "goals",
+      direction: "desc",
+    },
+  ],
+  offset: 0,
+  limit: 20,
+};
+
+const result = await executor.execute(table, query);
+```
+
+Der Contract definiert bewusst keine konkrete Datenquelle, Persistenzform oder
+Ausfuehrungsstrategie.
 
 ## Excel
 
@@ -485,6 +551,8 @@ import type {
   JsonValue,
   TextDataTypeInterface,
   TableDataTypeInterface,
+  TableQueryInterface,
+  TableQueryExecutorInterface,
   RowDataTypeInterface,
   ColumnDataTypeInterface,
   ExcelDataTypeInterface,
