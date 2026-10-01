@@ -13,8 +13,6 @@
   },
   "files": [
     "dist",
-    "src",
-    "tsconfig.json",
     "README.md",
     "LICENSE"
   ],
@@ -22,7 +20,19 @@
     "clean": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\"",
     "build": "npm run clean && tsc -p tsconfig.json",
     "test": "npm run build && node --test tests/error.test.mjs",
-    "prepare": "npm run build"
+    "prepack": "npm run build"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Frxnklyn/npm-datatypes.git"
+  },
+  "homepage": "https://github.com/Frxnklyn/npm-datatypes#readme",
+  "bugs": {
+    "url": "https://github.com/Frxnklyn/npm-datatypes/issues"
   },
   "keywords": [
     "typescript",
