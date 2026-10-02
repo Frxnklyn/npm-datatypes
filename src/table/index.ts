@@ -11,3 +11,6 @@ export * from "./DataSaveInterface.js";
 
 export * from "./filter/index.js";
 export * from "./query/index.js";
+export * from "./schema/index.js";
+export * from "./mutation/index.js";
+export * from "./source/index.js";

@@ -36,7 +36,23 @@ src/
     query/
       TableQueryTypes.ts
       TableQueryInterface.ts
+      TableQueryRequestInterface.ts
       TableQueryExecutorInterface.ts
+      TableQueryValidatorInterface.ts
+      index.ts
+    schema/
+      AttributeSchemaInterface.ts
+      RelationSchemaInterface.ts
+      TableSchemaInterface.ts
+      TableSchemaRegistryInterface.ts
+      index.ts
+    mutation/
+      TableMutationTypes.ts
+      index.ts
+    source/
+      TableDataSourceTypes.ts
+      TableDataSourceInterface.ts
+      TableDataSourceRegistryInterface.ts
       index.ts
     index.ts
   excel/
@@ -198,8 +214,19 @@ Wichtige Typen:
 - `TableQueryGroup`
 - `TableQueryCondition`
 - `TableQueryOrder`
+- `TableQueryAggregation`
 - `TableQueryInterface`
+- `TableQueryRequestInterface`
 - `TableQueryExecutorInterface`
+- `TableQueryValidatorInterface`
+- `TableSchemaInterface`
+- `AttributeSchemaInterface`
+- `RelationSchemaInterface`
+- `TableSchemaRegistryInterface`
+- `TableMutation`
+- `TableDataSourceInterface`
+- `TableDataSourceRegistryInterface`
+- `TableDataSourceCapability`
 
 Wichtige Funktionen:
 
@@ -314,9 +341,9 @@ await table.dataSave();
 
 `TableQueryInterface` beschreibt einen standardisierten, datenquellenunabhaengigen
 Query-Vertrag fuer Tabellen. Eine Query kann rekursiv verschachtelte Filter,
-Sortierungen sowie `offset` und `limit` enthalten. Die Query beschreibt nur das
-gewünschte Ergebnis; wie sie ausgefuehrt wird, bleibt der konkreten
-Implementierung ueberlassen.
+Projektionen, Sortierungen, Gruppierungen, Aggregationen sowie `offset` und
+`limit` enthalten. Die Query beschreibt nur das gewuenschte Ergebnis; wie sie
+ausgefuehrt wird, bleibt der konkreten Implementierung ueberlassen.
 
 `TableQueryExecutorInterface` bildet den Standardprozess `Table + Query -> Table`
 ab. `execute()` darf die Eingabe-Table nicht veraendern und liefert den durch die
@@ -349,9 +376,22 @@ const query: TableQueryInterface = {
       },
     ],
   },
+  select: ["season", "club"],
+  groupBy: ["season", "club"],
+  aggregations: [
+    {
+      function: "sum",
+      attribute: "goals",
+      as: "totalGoals",
+    },
+    {
+      function: "count",
+      as: "rows",
+    },
+  ],
   orderBy: [
     {
-      attribute: "goals",
+      attribute: "totalGoals",
       direction: "desc",
     },
   ],
@@ -363,7 +403,70 @@ const result = await executor.execute(table, query);
 ```
 
 Der Contract definiert bewusst keine konkrete Datenquelle, Persistenzform oder
-Ausfuehrungsstrategie.
+Ausfuehrungsstrategie. Bei `TableQueryOrder` ist `direction` absichtlich
+pflichtig, damit portable Queries auf allen Executoren dieselbe Sortiersemantik
+haben.
+
+### Schema, DataSources und KI-sichere Requests
+
+Die Schema-Contracts trennen die fachliche Beschreibung einer Tabelle von ihrem
+aktuell geladenen Zustand. `TableSchemaInterface` beschreibt Name, Attribute,
+Primary-Key-Attribute und Relations. `TableDataTypeInterface` bleibt weiterhin
+der konkrete geladene Tabellenzustand.
+
+`TableQueryRequestInterface` bindet eine portable Query explizit an eine
+registrierte DataSource und einen fachlichen Tabellennamen:
+
+```ts
+const request: TableQueryRequestInterface = {
+  source: "football-manager",
+  table: "PlayerSeason",
+  query: {
+    where: {
+      attribute: "playerId",
+      operator: "equals",
+      value: 42,
+    },
+    groupBy: ["season"],
+    aggregations: [
+      {
+        function: "sum",
+        attribute: "goals",
+        as: "goals",
+      },
+    ],
+    orderBy: [
+      {
+        attribute: "season",
+        direction: "asc",
+      },
+    ],
+  },
+};
+```
+
+Eine KI muss dadurch weder Connection Strings noch SQL erzeugen. Sie kann nur
+fachliche Namen und die vom Contract erlaubten Operationen beschreiben. Ein
+Consumer loest `source` ueber `TableDataSourceRegistryInterface` auf, prueft
+die Query gegen das Schema und uebersetzt sie anschliessend
+datenquellenspezifisch. SQL-Adapter koennen dabei konsequent parametrisierte
+Queries verwenden.
+
+DataSources deklarieren ihre Faehigkeiten explizit, zum Beispiel `read`,
+`filter`, `aggregate`, `create`, `update` oder `delete`. Schreibzugriffe
+werden ueber `TableMutation` als deklarative Mutations beschrieben. Update und
+Delete verlangen absichtlich immer eine `where`-Bedingung; ein unabsichtlicher
+ungefilterter Schreibzugriff ist damit im gemeinsamen Contract nicht
+darstellbar.
+
+Die Rollen sind damit getrennt:
+
+```text
+TableSchema          = Welche fachlichen Tabellen, Attribute und Relations gibt es?
+TableQueryRequest    = Welche DataSource und welche Daten werden angefordert?
+TableDataSource      = Wie wird die Anfrage technisch ausgefuehrt?
+TableDataType        = Welcher Tabellenzustand kam als Ergebnis zurueck?
+```
 
 ## Excel
 
