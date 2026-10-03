@@ -54,6 +54,10 @@ src/
       TableDataSourceInterface.ts
       TableDataSourceRegistryInterface.ts
       index.ts
+    database/
+      TableDatabaseInterface.ts
+      MutableTableDatabaseInterface.ts
+      index.ts
     index.ts
   excel/
     ExcelDataTypeInterface.ts
@@ -227,6 +231,8 @@ Wichtige Typen:
 - `TableDataSourceInterface`
 - `TableDataSourceRegistryInterface`
 - `TableDataSourceCapability`
+- `TableDatabaseInterface`
+- `MutableTableDatabaseInterface`
 
 Wichtige Funktionen:
 
@@ -468,6 +474,50 @@ TableDataSource      = Wie wird die Anfrage technisch ausgefuehrt?
 TableDataType        = Welcher Tabellenzustand kam als Ergebnis zurueck?
 ```
 
+### Table Databases
+
+`TableDatabaseInterface` beschreibt eine neutrale Sammlung fachlicher Tables.
+Der Contract kennt weder SQL noch Google Sheets. Ein Consumer kann dadurch mit
+derselben API Tabellen entdecken und referenzieren:
+
+```ts
+await database.dataRead();
+
+if (database.hasTable("PlayerSeason")) {
+  const table = database.getTable("PlayerSeason");
+  await table.dataRead();
+}
+```
+
+`getTable(name)` erzeugt beziehungsweise liefert eine logische
+Table-Referenz und fuehrt selbst keinen externen Read aus. Ob die Table extern
+wirklich existiert, wird dadurch nicht garantiert. `hasTable(name)` und
+`getTables()` beziehen sich auf den aktuell bekannten Database-Zustand. Fuer
+eine autoritative Sicht auf eine externe Datenbank wird deshalb zuerst
+`dataRead()` ausgefuehrt.
+
+Schreibbare Implementierungen koennen zusaetzlich
+`MutableTableDatabaseInterface` implementieren. Neue Tables werden ueber ein
+`TableSchemaInterface` beschrieben:
+
+```ts
+if (!database.hasTable(playerSeasonSchema.getName())) {
+  const table = database.addTable(playerSeasonSchema);
+  await database.dataSave();
+}
+```
+
+Der Contract schreibt nicht vor, wie eine Table physisch entsteht. Eine
+Google-Sheets-Implementierung kann aus dem Schema ein neues Sheet mit den
+Attributnamen als Header-Zeile erzeugen. Eine SQL-Implementierung kann dasselbe
+Schema in eine sichere datenbankspezifische CREATE-TABLE-Operation uebersetzen.
+Die gemeinsame API bleibt dabei identisch.
+
+`TableDatabaseInterface` und `MutableTableDatabaseInterface` enthalten
+bewusst keine Framelet-spezifische Binding- oder Page-Logik. Framelet kann diese
+Contracts spaeter konsumieren, ohne an Google Sheets, SQL oder eine andere
+konkrete Persistenzform gekoppelt zu sein.
+
 ## Excel
 
 Die Excel-Domain beschreibt Workbooks, Sheets und Cells unabhängig von einer
@@ -656,6 +706,8 @@ import type {
   TableDataTypeInterface,
   TableQueryInterface,
   TableQueryExecutorInterface,
+  TableDatabaseInterface,
+  MutableTableDatabaseInterface,
   RowDataTypeInterface,
   ColumnDataTypeInterface,
   ExcelDataTypeInterface,

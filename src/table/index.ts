@@ -14,3 +14,4 @@ export * from "./query/index.js";
 export * from "./schema/index.js";
 export * from "./mutation/index.js";
 export * from "./source/index.js";
+export * from "./database/index.js";
