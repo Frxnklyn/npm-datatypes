@@ -36,23 +36,14 @@ src/
     query/
       TableQueryTypes.ts
       TableQueryInterface.ts
-      TableQueryRequestInterface.ts
-      TableQueryExecutorInterface.ts
-      TableQueryValidatorInterface.ts
       index.ts
     schema/
       AttributeSchemaInterface.ts
       RelationSchemaInterface.ts
       TableSchemaInterface.ts
-      TableSchemaRegistryInterface.ts
-      index.ts
-    mutation/
-      TableMutationTypes.ts
       index.ts
     source/
-      TableDataSourceTypes.ts
-      TableDataSourceInterface.ts
-      TableDataSourceRegistryInterface.ts
+      TableSourceInterface.ts
       index.ts
     index.ts
   excel/
@@ -216,17 +207,10 @@ Wichtige Typen:
 - `TableQueryOrder`
 - `TableQueryAggregation`
 - `TableQueryInterface`
-- `TableQueryRequestInterface`
-- `TableQueryExecutorInterface`
-- `TableQueryValidatorInterface`
 - `TableSchemaInterface`
 - `AttributeSchemaInterface`
 - `RelationSchemaInterface`
-- `TableSchemaRegistryInterface`
-- `TableMutation`
-- `TableDataSourceInterface`
-- `TableDataSourceRegistryInterface`
-- `TableDataSourceCapability`
+- `TableSourceInterface`
 
 Wichtige Funktionen:
 
@@ -339,15 +323,9 @@ await table.dataSave();
 
 ### Table Queries
 
-`TableQueryInterface` beschreibt einen standardisierten, datenquellenunabhaengigen
-Query-Vertrag fuer Tabellen. Eine Query kann rekursiv verschachtelte Filter,
-Projektionen, Sortierungen, Gruppierungen, Aggregationen sowie `offset` und
-`limit` enthalten. Die Query beschreibt nur das gewuenschte Ergebnis; wie sie
-ausgefuehrt wird, bleibt der konkreten Implementierung ueberlassen.
-
-`TableQueryExecutorInterface` bildet den Standardprozess `Table + Query -> Table`
-ab. `execute()` darf die Eingabe-Table nicht veraendern und liefert den durch die
-Query erzeugten Tabellenzustand als eigene `TableDataTypeInterface` zurueck.
+`TableQueryInterface` beschreibt ausschließlich, welche Daten aus einer Table
+angefordert werden. Der Contract enthält Filter, Projektion, Sortierung,
+Gruppierung, Aggregationen sowie `offset` und `limit`.
 
 ```ts
 const query: TableQueryInterface = {
@@ -355,117 +333,84 @@ const query: TableQueryInterface = {
     comparator: "and",
     conditions: [
       {
-        attribute: "season",
+        attribute: "playerId",
         operator: "equals",
-        value: "2032/33",
-      },
-      {
-        comparator: "or",
-        conditions: [
-          {
-            attribute: "club",
-            operator: "equals",
-            value: "Barcelona",
-          },
-          {
-            attribute: "club",
-            operator: "equals",
-            value: "Real Madrid",
-          },
-        ],
+        value: 42,
       },
     ],
   },
-  select: ["season", "club"],
-  groupBy: ["season", "club"],
+  groupBy: ["season"],
   aggregations: [
     {
       function: "sum",
       attribute: "goals",
-      as: "totalGoals",
-    },
-    {
-      function: "count",
-      as: "rows",
+      as: "goals",
     },
   ],
   orderBy: [
     {
-      attribute: "totalGoals",
-      direction: "desc",
+      attribute: "season",
+      direction: "asc",
     },
   ],
-  offset: 0,
-  limit: 20,
 };
-
-const result = await executor.execute(table, query);
 ```
 
-Der Contract definiert bewusst keine konkrete Datenquelle, Persistenzform oder
-Ausfuehrungsstrategie. Bei `TableQueryOrder` ist `direction` absichtlich
-pflichtig, damit portable Queries auf allen Executoren dieselbe Sortiersemantik
-haben.
+Die Query führt selbst nichts aus. Sie wird einer Table beim Erzeugen über ihre
+Source mitgegeben. Die konkrete Table bleibt lazy und führt externes I/O erst
+bei `dataRead()` aus.
 
-### Schema, DataSources und KI-sichere Requests
+### Table Source
 
-Die Schema-Contracts trennen die fachliche Beschreibung einer Tabelle von ihrem
-aktuell geladenen Zustand. `TableSchemaInterface` beschreibt Name, Attribute,
-Primary-Key-Attribute und Relations. `TableDataTypeInterface` bleibt weiterhin
-der konkrete geladene Tabellenzustand.
-
-`TableQueryRequestInterface` bindet eine portable Query explizit an eine
-registrierte DataSource und einen fachlichen Tabellennamen:
+`TableSourceInterface` ist die einzige gemeinsame Abstraktion oberhalb einer
+Table. Sie verbindet einen fachlichen Table-Namen mit einer optionalen Query und
+liefert eine lazy `TableDataTypeInterface`-Referenz:
 
 ```ts
-const request: TableQueryRequestInterface = {
-  source: "football-manager",
-  table: "PlayerSeason",
-  query: {
-    where: {
-      attribute: "playerId",
-      operator: "equals",
-      value: 42,
-    },
-    groupBy: ["season"],
-    aggregations: [
-      {
-        function: "sum",
-        attribute: "goals",
-        as: "goals",
-      },
-    ],
-    orderBy: [
-      {
-        attribute: "season",
-        direction: "asc",
-      },
-    ],
-  },
-};
+const table = source.getTable("PlayerSeason", query);
+
+// Bis hier kein externer Read.
+await table.dataRead();
+
+const rows = table.getRows();
 ```
 
-Eine KI muss dadurch weder Connection Strings noch SQL erzeugen. Sie kann nur
-fachliche Namen und die vom Contract erlaubten Operationen beschreiben. Ein
-Consumer loest `source` ueber `TableDataSourceRegistryInterface` auf, prueft
-die Query gegen das Schema und uebersetzt sie anschliessend
-datenquellenspezifisch. SQL-Adapter koennen dabei konsequent parametrisierte
-Queries verwenden.
-
-DataSources deklarieren ihre Faehigkeiten explizit, zum Beispiel `read`,
-`filter`, `aggregate`, `create`, `update` oder `delete`. Schreibzugriffe
-werden ueber `TableMutation` als deklarative Mutations beschrieben. Update und
-Delete verlangen absichtlich immer eine `where`-Bedingung; ein unabsichtlicher
-ungefilterter Schreibzugriff ist damit im gemeinsamen Contract nicht
-darstellbar.
-
-Die Rollen sind damit getrennt:
+Damit bleibt der Ablauf bewusst klein:
 
 ```text
-TableSchema          = Welche fachlichen Tabellen, Attribute und Relations gibt es?
-TableQueryRequest    = Welche DataSource und welche Daten werden angefordert?
-TableDataSource      = Wie wird die Anfrage technisch ausgefuehrt?
-TableDataType        = Welcher Tabellenzustand kam als Ergebnis zurueck?
+Source
+  -> getTable(name, query)
+Lazy Table
+  -> dataRead()
+geladene Rows / Columns / Attributes
+```
+
+`hasTable(name)` prüft die Existenz asynchron an der konkreten Datenquelle.
+`addTable(schema)` und `removeTable(name)` sind ebenfalls asynchron, weil sie
+die externe Struktur tatsächlich verändern.
+
+```ts
+if (!await source.hasTable("PlayerSeason")) {
+  await source.addTable(playerSeasonSchema);
+}
+```
+
+Das `TableSchemaInterface` beschreibt dabei nur die fachliche Struktur. Eine
+Google-Sheets-Source kann ein Schema als Sheet interpretieren und die Attribute
+als erste Header-Zeile schreiben. Eine SQL-Source kann dasselbe Schema in eine
+datenbankspezifische, sichere Tabellenanlage übersetzen.
+
+Es gibt bewusst keinen separaten Query-Executor, keine DataSource-Registry,
+keinen Capability-Contract und keine Database-Abstraktion in diesem Package.
+Solche Orchestrierung gehört zum Consumer. Framelet kann beispielsweise seine
+Sources selbst registrieren und anschließend immer denselben Ablauf verwenden:
+
+```text
+Framelet
+   -> Source
+      -> Table + Query
+         -> dataRead()
+            -> DataContext
 ```
 
 ## Excel
@@ -655,7 +600,8 @@ import type {
   TextDataTypeInterface,
   TableDataTypeInterface,
   TableQueryInterface,
-  TableQueryExecutorInterface,
+  TableSourceInterface,
+  TableSchemaInterface,
   RowDataTypeInterface,
   ColumnDataTypeInterface,
   ExcelDataTypeInterface,
