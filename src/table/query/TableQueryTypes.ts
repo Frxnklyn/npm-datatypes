@@ -35,8 +35,8 @@ export type TableQueryOrderDirection =
 /**
  * Beschreibt eine Sortierung nach einem fachlichen Attribute- oder Alias-Namen.
  *
- * direction ist absichtlich verpflichtend, damit portable Queries unabhängig
- * vom konkreten Executor dieselbe Sortiersemantik besitzen.
+ * direction ist verpflichtend, damit dieselbe portable Query unabhängig von
+ * der konkreten Source dieselbe Sortiersemantik besitzt.
  */
 export type TableQueryOrder = Readonly<{
   attribute: string;
