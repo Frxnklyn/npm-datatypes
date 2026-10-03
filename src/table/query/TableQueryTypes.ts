@@ -33,9 +33,42 @@ export type TableQueryOrderDirection =
   | "desc";
 
 /**
- * Beschreibt eine Sortierung nach einem fachlichen Attribute-Namen.
+ * Beschreibt eine Sortierung nach einem fachlichen Attribute- oder Alias-Namen.
+ *
+ * direction ist absichtlich verpflichtend, damit portable Queries unabhängig
+ * vom konkreten Executor dieselbe Sortiersemantik besitzen.
  */
 export type TableQueryOrder = Readonly<{
   attribute: string;
-  direction?: TableQueryOrderDirection;
+  direction: TableQueryOrderDirection;
 }>;
+
+/**
+ * Unterstützte Aggregationsfunktionen für portable Table-Queries.
+ */
+export type TableQueryAggregationFunction =
+  | "sum"
+  | "avg"
+  | "count"
+  | "min"
+  | "max";
+
+type TableQueryValueAggregation = Readonly<{
+  function: Exclude<TableQueryAggregationFunction, "count">;
+  attribute: string;
+  as: string;
+}>;
+
+type TableQueryCountAggregation = Readonly<{
+  function: "count";
+  attribute?: string;
+  as: string;
+}>;
+
+/**
+ * Beschreibt eine Aggregation. count darf ohne Attribute die Ergebnis-Rows
+ * zählen; alle wertbasierten Aggregationen benötigen ein Attribute.
+ */
+export type TableQueryAggregation =
+  | TableQueryValueAggregation
+  | TableQueryCountAggregation;
