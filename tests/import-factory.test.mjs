@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { AbstractImport, AbstractFactory } from "../dist/index.js";
+import { AbstractImport, AbstractJsonMappable, AbstractFactory } from "../dist/index.js";
 
-class FrameBase extends AbstractImport {
+class FrameBase extends AbstractJsonMappable {
   width = 100;
   height = 50;
 }
@@ -95,7 +95,7 @@ test("exports only allowlisted, current values from parent and child fields", ()
 });
 
 test("invalid JSON values and cycles are not exported", () => {
-  class State extends AbstractImport {
+  class State extends AbstractJsonMappable {
     name = "valid";
     zero = 0;
     nothing = null;
@@ -109,4 +109,11 @@ test("invalid JSON values and cycles are not exported", () => {
   const state = new State();
   state.loop.self = state.loop;
   assert.deepEqual(state.exportJson(), { name: "valid", zero: 0, nothing: null });
+});
+
+test("AbstractImport supports import-only classes without exposing exportJson", () => {
+  class ImportOnly extends AbstractImport { value = 0; }
+  const item = new ImportOnly().importJson({ value: 42 });
+  assert.equal(item.value, 42);
+  assert.equal(typeof item.exportJson, "undefined");
 });
