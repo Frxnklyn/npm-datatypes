@@ -135,12 +135,23 @@ class FrameFactory extends AbstractFactory {
 }
 
 const frame = FrameFactory.createText({ width: 400, text: "Hallo" });
+const json = frame.exportJson(); // { width: 400, text: "Hallo" }
 ```
 
 `AbstractImport` importiert nur bereits initialisierte, typkompatible
 Instanzfelder (einschliesslich geerbter Felder). Unbekannte oder unpassende
 Werte werden ignoriert, das Quell-JSON wird nicht gespeichert.
 `JsonDataType` ist ein Alias fuer den bestehenden `JsonValue`-Typ.
+
+`AbstractImport` bietet ausserdem `exportJson()`: Es liest aktuelle, freigegebene
+Klassenvariablen (einschliesslich geerbter Felder) und erstellt eine unabhaengige
+JSON-Kopie. Ungueltige Werte wie Funktionen, `undefined`, `Date`, `NaN`
+oder zyklische Objekte werden nicht exportiert. Beide Methoden verwenden
+dieselbe Freigabeliste `getImportableKeys()`.
+
+Das neue `ExportInterface` ist getrennt von `ImportInterface`, damit
+`AbstractFactory.create()` weiterhin ausschliesslich `importJson()` voraussetzt.
+Die Factory selbst bekommt keine Export-Logik.
 
 **Grenzen:** Der Import prueft Arrays und Objekte nur oberflaechlich, nicht
 deren innere Struktur. Felder, die mit `undefined` beginnen, koennen nicht

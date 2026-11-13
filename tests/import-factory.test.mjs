@@ -73,3 +73,40 @@ test("instance and static Factory.create delegate once and return the same objec
   assert.strictEqual(Factory.run(instance, json), instance);
   assert.deepEqual(instance.calls, [json, json]);
 });
+
+test("exports only allowlisted, current values from parent and child fields", () => {
+  const frame = FrameFactory.instantiate({
+    width: 400, height: 200, text: "Hallo", fontSize: 30,
+    enabled: false, items: ["A"], options: { weight: "bold" },
+    internal: "do not expose", unexpected: "ignore",
+  });
+  const snapshot = frame.exportJson();
+  assert.deepEqual(snapshot, {
+    width: 400, height: 200, text: "Hallo", fontSize: 30,
+    enabled: false, items: ["A"], options: { weight: "bold" },
+  });
+  frame.width = 800;
+  frame.items.push("B");
+  frame.options.weight = "normal";
+  assert.equal(snapshot.width, 400);
+  assert.deepEqual(snapshot.items, ["A"]);
+  assert.deepEqual(snapshot.options, { weight: "bold" });
+  assert.equal(frame.exportJson().width, 800);
+});
+
+test("invalid JSON values and cycles are not exported", () => {
+  class State extends AbstractImport {
+    name = "valid";
+    zero = 0;
+    nothing = null;
+    badNumber = Number.NaN;
+    badDate = new Date();
+    callback = () => "unsafe";
+    invalidArray = [undefined];
+    invalidObject = { nested: undefined };
+    loop = {};
+  }
+  const state = new State();
+  state.loop.self = state.loop;
+  assert.deepEqual(state.exportJson(), { name: "valid", zero: 0, nothing: null });
+});

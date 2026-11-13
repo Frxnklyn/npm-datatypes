@@ -1,5 +1,6 @@
 import type { JsonDataType } from "../json/JsonTypes.js";
 import type { ImportInterface } from "./ImportInterface.js";
+import type { ExportInterface } from "./ExportInterface.js";
 
 function isPlainObject(value: unknown): value is Record<string, JsonDataType> {
   if (value === null || typeof value !== "object" || Array.isArray(value)) return false;
@@ -19,6 +20,39 @@ function isCompatible(current: unknown, incoming: JsonDataType): boolean {
   return false;
 }
 
+/** Return a detached copy of a genuine JSON value or skip unsupported data. */
+function copyJson(value: unknown, active = new WeakSet<object>()): JsonDataType | undefined {
+  if (value === null || typeof value === "string" || typeof value === "boolean") return value;
+  if (typeof value === "number") return Number.isFinite(value) ? value : undefined;
+  if (!Array.isArray(value) && !isPlainObject(value)) return undefined;
+  if (active.has(value)) return undefined;
+  active.add(value);
+
+  try {
+    if (Array.isArray(value)) {
+      const array: JsonDataType[] = [];
+      for (const item of value) {
+        const copied = copyJson(item, active);
+        if (copied === undefined) return undefined;
+        array.push(copied);
+      }
+      return array;
+    }
+
+    const result: Record<string, JsonDataType> = {};
+    for (const key of Object.keys(value)) {
+      const property = Object.getOwnPropertyDescriptor(value, key);
+      if (!property || !("value" in property)) return undefined;
+      const copied = copyJson(property.value, active);
+      if (copied === undefined) return undefined;
+      Object.defineProperty(result, key, { value: copied, enumerable: true, writable: true, configurable: true });
+    }
+    return result;
+  } finally {
+    active.delete(value);
+  }
+}
+
 /**
  * Imports matching fields into an already constructed object, including
  * initialized fields inherited from parent classes. Unknown keys and
@@ -28,7 +62,7 @@ function isCompatible(current: unknown, incoming: JsonDataType): boolean {
  * TypeScript private/readonly members are not runtime access controls.
  * Arrays and nested objects are checked only by their broad category.
  */
-export abstract class AbstractImport implements ImportInterface {
+export abstract class AbstractImport implements ImportInterface, ExportInterface {
   public importJson(json: JsonDataType): this {
     if (!isPlainObject(json)) throw new TypeError("Import JSON must be an object");
 
@@ -43,6 +77,19 @@ export abstract class AbstractImport implements ImportInterface {
       target[key] = value;
     }
     return this;
+  }
+
+  /** Export current valid JSON fields, not the incoming definition. */
+  public exportJson(): JsonDataType {
+    const json: Record<string, JsonDataType> = {};
+    for (const key of this.getImportableKeys()) {
+      const property = Object.getOwnPropertyDescriptor(this, key);
+      if (!property || !("value" in property) || !property.writable) continue;
+      const value = copyJson(property.value);
+      if (value === undefined) continue;
+      Object.defineProperty(json, key, { value, enumerable: true, writable: true, configurable: true });
+    }
+    return json;
   }
 
   /** Uses initialized instance fields by default; override to allowlist. */
