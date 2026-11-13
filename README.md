@@ -106,6 +106,63 @@ src/
   index.ts
 ```
 
+## Gemeinsamer JSON-Import und Factory-Basis
+
+`AbstractImport`, `ImportInterface` und `AbstractFactory` koennen von Kibo,
+Framelet oder anderen Packages verwendet werden. Der Konstruktor braucht kein
+JSON: Zuerst wird die Klasse vollstaendig initialisiert, anschliessend ruft die
+Factory `importJson(json)` auf.
+
+```ts
+import { AbstractImport, AbstractFactory, type JsonDataType } from "@frxnklyn/datatypes";
+
+class Frame extends AbstractImport {
+  width = 100;
+}
+
+class TextFrame extends Frame {
+  text = "";
+}
+
+class FrameFactory extends AbstractFactory {
+  createText(json: JsonDataType): TextFrame {
+    return this.create(new TextFrame(), json);
+  }
+
+  static createText(json: JsonDataType): TextFrame {
+    return this.create(new TextFrame(), json);
+  }
+}
+
+const frame = FrameFactory.createText({ width: 400, text: "Hallo" });
+```
+
+`AbstractImport` importiert nur bereits initialisierte, typkompatible
+Instanzfelder (einschliesslich geerbter Felder). Unbekannte oder unpassende
+Werte werden ignoriert, das Quell-JSON wird nicht gespeichert.
+`JsonDataType` ist ein Alias fuer den bestehenden `JsonValue`-Typ.
+
+**Grenzen:** Der Import prueft Arrays und Objekte nur oberflaechlich, nicht
+deren innere Struktur. Felder, die mit `undefined` beginnen, koennen nicht
+automatisch typisiert werden. Bei nicht vertrauenswuerdigem JSON oder internen
+Feldern sollte die Klasse erlaubte Schluessel explizit freigeben:
+
+```ts
+class SafeFrame extends AbstractImport {
+  width = 100;
+  private internalId = "fixed";
+
+  protected override getImportableKeys(): readonly string[] {
+    return ["width"];
+  }
+}
+```
+
+`AbstractFactory` hat eine geschuetzte normale und eine geschuetzte statische
+`create(instance, json)`-Methode. **Beide machen ausschliesslich**
+`return instance.importJson(json);` — keine Registrierung,
+Instanziierung oder weitere Verarbeitung.
+
 ## Common
 
 `CommonDataTypeInterface<TContent>` enthaelt die Methoden, die jeder DataType anbietet.

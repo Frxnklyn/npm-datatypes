@@ -7,6 +7,8 @@ export interface JsonObject {
 export interface JsonArray extends Array<JsonValue> {}
 
 export type JsonValue = JsonPrimitive | JsonObject | JsonArray;
+/** Alias for JSON-based import APIs; identical to JsonValue. */
+export type JsonDataType = JsonValue;
 
 export function isJsonObject(value: unknown): value is JsonObject {
   return value !== null && typeof value === "object" && !Array.isArray(value);
