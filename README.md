@@ -106,17 +106,33 @@ src/
   index.ts
 ```
 
-## Gemeinsamer JSON-Import und Factory-Basis
+## Gemeinsamer JSON-Import, Export und Factory-Basis
 
-`AbstractImport`, `ImportInterface` und `AbstractFactory` koennen von Kibo,
-Framelet oder anderen Packages verwendet werden. Der Konstruktor braucht kein
-JSON: Zuerst wird die Klasse vollstaendig initialisiert, anschliessend ruft die
-Factory `importJson(json)` auf.
+Fuer Kibo, Framelet und andere Packages stehen drei Interfaces bereit:
+
+- `ImportInterface`: `importJson(json: JsonDataType): this`.
+- `ExportInterface`: `exportJson(): JsonDataType`.
+- `JsonMappableInterface`: erweitert beide Interfaces, ohne ihre Methoden zu duplizieren.
+
+`AbstractImport` implementiert **nur** den Import. Die Klasse
+`AbstractJsonMappable` erbt von `AbstractImport` und implementiert
+zusaetzlich den Export. Wer beides braucht, erweitert daher
+`AbstractJsonMappable`; wer nur importieren will, kann `AbstractImport`
+direkt erweitern. Eine eigene `AbstractExport` ist nicht erforderlich.
 
 ```ts
-import { AbstractImport, AbstractFactory, type JsonDataType } from "@frxnklyn/datatypes";
+import {
+  AbstractImport,
+  AbstractJsonMappable,
+  AbstractFactory,
+  type JsonDataType,
+} from "@frxnklyn/datatypes";
 
-class Frame extends AbstractImport {
+class ImportOnly extends AbstractImport {
+  enabled = true;
+}
+
+class Frame extends AbstractJsonMappable {
   width = 100;
 }
 
@@ -134,32 +150,32 @@ class FrameFactory extends AbstractFactory {
   }
 }
 
+const onlyImport = new ImportOnly().importJson({ enabled: false });
 const frame = FrameFactory.createText({ width: 400, text: "Hallo" });
 const json = frame.exportJson(); // { width: 400, text: "Hallo" }
 ```
 
-`AbstractImport` importiert nur bereits initialisierte, typkompatible
-Instanzfelder (einschliesslich geerbter Felder). Unbekannte oder unpassende
-Werte werden ignoriert, das Quell-JSON wird nicht gespeichert.
-`JsonDataType` ist ein Alias fuer den bestehenden `JsonValue`-Typ.
+Der Konstruktor braucht kein JSON: Zuerst wird die Klasse vollstaendig
+initialisiert, anschliessend ruft die Factory `importJson(json)` auf.
+Importiert werden nur bereits initialisierte, typkompatible Instanzfelder
+(einschliesslich geerbter Felder). Unbekannte oder unpassende Werte werden
+ignoriert; das Quell-JSON wird nicht gespeichert. `JsonDataType` ist ein
+Alias fuer den bestehenden `JsonValue`-Typ.
 
-`AbstractImport` bietet ausserdem `exportJson()`: Es liest aktuelle, freigegebene
-Klassenvariablen (einschliesslich geerbter Felder) und erstellt eine unabhaengige
-JSON-Kopie. Ungueltige Werte wie Funktionen, `undefined`, `Date`, `NaN`
-oder zyklische Objekte werden nicht exportiert. Beide Methoden verwenden
-dieselbe Freigabeliste `getImportableKeys()`.
-
-Das neue `ExportInterface` ist getrennt von `ImportInterface`, damit
-`AbstractFactory.create()` weiterhin ausschliesslich `importJson()` voraussetzt.
-Die Factory selbst bekommt keine Export-Logik.
+`AbstractJsonMappable.exportJson()` liest dagegen den **aktuellen Zustand**
+freigegebener Klassenvariablen und erstellt eine unabhaengige JSON-Kopie.
+Nicht serialisierbare Werte wie Funktionen, `undefined`, `Date`,
+`NaN` und Zyklen werden ausgelassen. Import und Export verwenden dieselbe
+Freigabeliste `getImportableKeys()`.
 
 **Grenzen:** Der Import prueft Arrays und Objekte nur oberflaechlich, nicht
-deren innere Struktur. Felder, die mit `undefined` beginnen, koennen nicht
-automatisch typisiert werden. Bei nicht vertrauenswuerdigem JSON oder internen
-Feldern sollte die Klasse erlaubte Schluessel explizit freigeben:
+deren innere Struktur, und uebernimmt diese Werte als Referenz. Felder, die
+mit `undefined` beginnen, koennen nicht automatisch typisiert werden.
+Bei nicht vertrauenswuerdigem JSON oder internen Feldern sollte die Klasse
+erlaubte Schluessel explizit freigeben:
 
 ```ts
-class SafeFrame extends AbstractImport {
+class SafeFrame extends AbstractJsonMappable {
   width = 100;
   private internalId = "fixed";
 
@@ -169,10 +185,10 @@ class SafeFrame extends AbstractImport {
 }
 ```
 
-`AbstractFactory` hat eine geschuetzte normale und eine geschuetzte statische
-`create(instance, json)`-Methode. **Beide machen ausschliesslich**
-`return instance.importJson(json);` — keine Registrierung,
-Instanziierung oder weitere Verarbeitung.
+`AbstractFactory` bleibt unveraendert minimal: Eine geschuetzte normale
+und eine geschuetzte statische `create<T extends ImportInterface>(instance, json)`
+geben jeweils ausschliesslich `instance.importJson(json)` zurueck. Die
+Factory selbst hat keine Export-Logik und bewahrt den konkreten Rueckgabetyp.
 
 ## Common
 
