@@ -106,6 +106,40 @@ src/
   index.ts
 ```
 
+## Neuer optionaler Constructor-JSON-Import
+
+Neben der bisherigen Factory-/`importJson()`-Variante gibt es jetzt
+`AbstractJsonObject`, `@JsonField()`, `@JsonFunction("key")` und
+`JsonConstructorInterface<T>`. Die bisherige Variante bleibt bestehen.
+
+```ts
+import { AbstractJsonObject, JsonField, JsonFunction, type JsonDataType } from "@frxnklyn/datatypes";
+
+class Agent extends AbstractJsonObject {
+  @JsonField() systemPrompt = "";
+  @JsonField() connection?: Connection = undefined;
+
+  @JsonFunction("connection")
+  protected createConnection(json: JsonDataType): Connection {
+    return new Connection(json);
+  }
+}
+
+class CustomAgent extends Agent {
+  @JsonField() temperature = 0.7;
+}
+
+const agent = new CustomAgent({ systemPrompt: "Kibo", temperature: 0.5 });
+```
+
+Kein Class-Decorator, keine zusätzliche Factory und kein eigener
+Konstruktor in Unterklassen nötig. Für Funktionen muss ein zugehöriges
+`@JsonField()` existieren. **Wichtig:** Die Funktion läuft während der
+Feldinitialisierung, nicht nach Abschluss aller Konstruktoren.
+
+Detaillierte [Checkliste, Beispiele, Einschränkungen und Tests](docs/json-decorator-import.md).
+Die weiteren Architekturpunkte stehen in [TODO.md](TODO.md).
+
 ## Gemeinsamer JSON-Import, Export und Factory-Basis
 
 Fuer Kibo, Framelet und andere Packages stehen drei Interfaces bereit:
