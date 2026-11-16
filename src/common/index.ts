@@ -6,5 +6,6 @@ export * from "./AbstractImport.js";
 export * from "./AbstractJsonMappable.js";
 export * from "./AbstractFactory.js";
 export { AbstractJsonObject } from "./AbstractJsonObject.js";
-export { JsonField, JsonFunction } from "./JsonDecorators.js";
+export { JsonField } from "./JsonDecorators.js";
+export type { JsonFieldOptions } from "./JsonDecorators.js";
 export type { JsonConstructorInterface } from "./JsonConstructorInterface.js";

@@ -1,36 +1,31 @@
-# Constructor-JSON mit Decorators (opt-in)
+# Constructor-JSON mit einem Field-Decorator (opt-in)
 
 Die neue Lösung **ergänzt** die bisherigen Klassen `AbstractImport`,
-`AbstractJsonMappable` und `AbstractFactory` ohne deren Verhalten zu ändern.
-Sie ist für `new AiAgent(json)` gedacht und benötigt **keinen**
-Class-Decorator, `fromJson()`-Aufruf oder eigenen Import-Aufruf in Kindklassen.
-Voraussetzung: moderne TypeScript-Decorators (TypeScript 5+, **ohne**
-`experimentalDecorators`).
+`AbstractJsonMappable` und `AbstractFactory`, ohne sie zu verändern.
+Sie ermöglicht `new AiAgent(json)` ohne Class-Decorator oder
+`fromJson()`-Methode. Benötigt werden moderne TypeScript-Decorators
+(TypeScript 5+, **ohne** `experimentalDecorators`).
 
-## Checkliste aus der Anforderung
+## Anforderungscheckliste
 
-| Anforderung | Ergebnis |
+| Anforderung | Umsetzung |
 | --- | --- |
-| Eine zentrale Klasse, von der alle erben | ✅ `AbstractJsonObject` |
-| Erbende Klassen kennzeichnen nur Variablen / Funktionen | ✅ `@JsonField()`, optional `@JsonFunction("key")` |
-| Standardwerte `systemPrompt = ""` bleiben möglich | ✅ Ein JSON-Wert ersetzt den Standardwert erst **bei der Feldinitialisierung** |
-| Komplexe JSON-Verarbeitung durch Funktionen | ✅ Die passende `@JsonFunction` liefert eine Klasseninstanz/einen Feldwert zurück |
-| Keine weiteren Decorators am Klassennamen | ✅ Auch nicht bei `extends AiAgent` |
-| `new AiAgent(json)` statt `fromJson()` | ✅ |
-| Alte Variante bleibt vorhanden | ✅ Sie wird nicht verändert |
+| Eine zentrale Basisklasse | ✅ `AbstractJsonObject` |
+| Kindklassen markieren nur ihre importierten Felder | ✅ `@JsonField()` |
+| Standardwerte wie `systemPrompt = ""` | ✅ Bleiben bei fehlendem JSON bestehen |
+| Komplexe Werte über Funktionen | ✅ `@JsonField({ import: "createConnection" })` |
+| Nur **ein** Decorator je Feld | ✅ Kein `@JsonFunction` mehr |
+| Keine Class-Decorators bei Unterklassen | ✅ Vererbte Felder funktionieren automatisch |
+| Direkter Aufruf `new AiAgent(json)` | ✅ |
+| Constructor-Interface | ✅ `JsonConstructorInterface<T>` |
+| Alte Variante und Factory bleiben bestehen | ✅ Unverändert |
 
-**Wichtige Regel:** Eine allein gekennzeichnete `@JsonFunction` wird
-nicht automatisch aufgerufen. Es braucht ein **passendes**
-`@JsonField()` als Auslöser. Die Funktion soll den **fertigen Feldwert
-zurückgeben**, statt einen void-Setter zu verwenden.
-
-## Beispiel: einfache Werte, Connection und Vererbung
+## Beispiel für Kibo
 
 ```ts
 import {
   AbstractJsonObject,
   JsonField,
-  JsonFunction,
   type JsonDataType,
   type JsonConstructorInterface,
 } from "@frxnklyn/datatypes";
@@ -40,11 +35,14 @@ class AiConnection extends AbstractJsonObject {
 }
 
 class AiAgent extends AbstractJsonObject {
+  // Einfaches JSON: gleicher Schlüssel, Standardwert bleibt erhalten.
   @JsonField() systemPrompt = "";
   @JsonField() temperature = 0.7;
-  @JsonField() connection?: AiConnection = undefined;
 
-  @JsonFunction("connection")
+  // Komplexes JSON: genau EIN Decorator mit Methodennamen.
+  @JsonField({ import: "createConnection" })
+  connection?: AiConnection = undefined;
+
   protected createConnection(json: JsonDataType): AiConnection {
     return new AiConnection(json);
   }
@@ -60,81 +58,93 @@ const agent = new CustomAgent({
   customPrompt: "Hallo",
 });
 agent.systemPrompt; // "Du bist Kibo"
-agent.temperature; // 0.7, weil JSON keinen Wert vorgibt
+agent.temperature;  // 0.7 (Standard)
 agent.connection instanceof AiConnection; // true
 
-// Ein Konstruktor mit JSON-Argument entspricht dem Interface:
 const ctor: JsonConstructorInterface<AiAgent> = AiAgent;
 const another = new ctor({ systemPrompt: "Hallo" });
 ```
 
-Mit `@JsonField("system_prompt")` kann ein anderer JSON-Schlüssel
-zugeordnet werden. Nicht gekennzeichnete Eigenschaften bleiben geschützt
-vor einer automatischen JSON-Zuweisung.
+## Alle Schreibweisen
 
-## Reihenfolge: kein zu früher Basis-Import
+```ts
+@JsonField()                                         // JSON key = field name
+systemPrompt = "";
 
-1. `AbstractJsonObject` speichert das JSON intern in einer `WeakMap`
-   beim Aufruf von `super(json)`. Es ruft **noch keine** Kindmethoden auf.
-2. Danach werden die Felder der ersten erbenden Klasse in ihrer
-   Deklarationsreihenfolge initialisiert. Jedes `@JsonField` liest
-   den passenden JSON-Wert und ruft bei Bedarf die `@JsonFunction` auf.
-3. Danach initialisieren sich die Felder der nächsten erbenden Klasse.
-4. `new CustomAgent(json)` liefert das fertige Objekt zurück.
+@JsonField("system_prompt")                          // JSON key alias
+systemPrompt = "";
 
-**Grenze:** Es gibt dabei keine generische Funktion, die *nach allen*
-Konstruktoren automatisch ausgeführt wird. Eine Konvertierung wird während
-der Initialisierung **ihres Feldes** ausgeführt. Wer z. B. `tools`
-aus `connection` baut, muss `connection` im selben Klassenniveau
-**vor** `tools` deklarieren. Methoden aus der Elternklasse dürfen keine
-noch uninitialisierten Eigenschaften der Kindklasse voraussetzen.
+@JsonField({ import: "createConnection" })           // named conversion method
+connection?: AiConnection = undefined;
 
-## Vererbung und Überschreiben
+@JsonField({ key: "connection_json", import: "createConnection" })
+connection?: AiConnection = undefined;               // alias + converter
+```
 
-- Geerbte `@JsonField`-Felder funktionieren unverändert, ohne neue
-  Decorators in der Unterklasse.
-- Eine überschriebene `@JsonFunction`-Methode wird über dynamischen
-  Methodenaufruf gefunden, auch wenn der Override selbst nicht erneut
-  dekoriert ist. Der Aufruf kann aber **vor** den Feldinitialisierungen
-  der Kindklasse geschehen.
-- Deklariert eine Unterklasse ein Feld **erneut** (z. B.
-  `override systemPrompt = "Anderer Standard"`), muss die neue
-  Deklaration **erneut `@JsonField()`** tragen; sonst kann sie
-  den zuvor importierten Elternwert überschreiben.
-- Methoden müssen den importierten Feldwert **zurückgeben**;
-  `@JsonFunction` ist keine asynchrone Nach-Konstruktor-Hook.
+Die beiden `systemPrompt`-Varianten bzw. die beiden
+`connection`-Varianten zeigen jeweils **Alternativen**, keine mehrfachen
+Deklarationen innerhalb derselben Klasse.
 
-## Constructor-Interface und bestehende Variante
+Der Wert von `import` ist der **Methodenname** und nicht der JSON-Key.
+Die Methode benötigt **keinen Decorator** und muss den fertigen Feldwert
+`return`en. Methoden dürfen `protected` oder `public` sein; JavaScript
+`#private`-Methoden sind dafür nicht geeignet. Ein falsch geschriebener
+Methodenname führt beim tatsächlichen Import zu einem verständlichen
+`TypeError`. TypeScript kann diese String-Verknüpfung derzeit **nicht
+automatisch bei der Deklaration überprüfen**.
 
-`JsonConstructorInterface<T>` schreibt `new (json: JsonDataType): T`
-als Signatur fest. Damit können Bibliotheken Konstruktoren von
-JSON-Modellen typisieren, ohne eine Factory oder separate
-`fromJson()`-Methode vorzuschreiben.
+## Initialisierungsreihenfolge
 
-Die alte Import-/Export-API bleibt separat und unverändert:
+1. `AbstractJsonObject` speichert das Eingabe-JSON intern in einer `WeakMap`.
+2. Wenn die deklarierende Klasse ihre Felder initialisiert, liest jedes
+   `@JsonField` den zugehörigen Wert.
+3. Ist `import` angegeben, wird die genannte Instanzmethode mit dem
+   rohen JSON-Wert aufgerufen. Ihr Rückgabewert wird Feldwert.
+4. Danach werden die folgenden Felder bzw. die Felder weiterer Unterklassen
+   initialisiert.
+
+**Grenze:** Das geschieht **während** der Feldinitialisierung und nicht
+in einer globalen Importphase nach dem letzten Unterklassenkonstruktor.
+Ein `createTools()`, das `this.connection` benötigt, setzt voraus, dass
+`connection` vorher initialisiert wurde. Insbesondere dürfen aus einer
+Basisklasse aufgerufene überschriebene Methoden nicht auf noch nicht
+initialisierte Felder ihrer Unterklasse zugreifen.
+
+## Vererbung und erneut deklarierte Felder
+
+- Geerbte Felder behalten ihre Zuordnung ohne weiteren Decorator.
+- Wird eine `createConnection`-Methode überschrieben, gilt normale
+  dynamische Methodenauswahl. Sie wird aber möglicherweise **vor** der
+  Initialisierung von Feldern der Unterklasse ausgeführt.
+- Wird eine geerbte Eigenschaft erneut mit einem Initialisierer deklariert,
+  muss diese neue Deklaration ebenfalls `@JsonField()` tragen, um das
+  JSON bei ihrer Initialisierung erneut zu berücksichtigen.
+- Fehlende JSON-Schlüssel behalten den deklarierten Standardwert;
+  Konverter werden in diesem Fall nicht aufgerufen.
+
+## Bestehende Variante und Constructor-Interface
+
+`JsonConstructorInterface<T>` beschreibt `new (json: JsonDataType): T`.
+Die bestehende Variante bleibt unabhängig:
 `new MyFrame().importJson(json)`, `AbstractFactory.create(...)`
-und `exportJson()` funktionieren wie zuvor.
+und `exportJson()` werden nicht angepasst.
 
-## Laufzeitvalidierung und Grenzen
+## Validierung und Sicherheit
 
-Das Konstruktor-JSON muss ein einfaches Objekt sein (kein Array, `null`
-oder primitiver Wert). Bei direktem Import werden Werte **oberflächlich**
-anhand des Standardwertes verglichen: ein String-Standard akzeptiert
-Strings; Zahlen müssen endlich sein; Booleans, Arrays und einfache
-Objekte werden grob geprüft. Bei `undefined` lässt sich der Zieltyp
-zur Laufzeit nicht erkennen; solche Werte werden direkt übernommen.
-Das Ergebnis von `@JsonFunction` wird ebenfalls nicht automatisch
-validiert. Komplexe Strukturen müssen in der Importfunktion geprüft werden.
+Direkte Werte werden nur **oberflächlich** mit dem Standardwert verglichen:
+String, Number (endlich), Boolean, Array bzw. einfaches Objekt.
+Bei `undefined` ist kein Laufzeittyp ableitbar; der Wert wird dann
+direkt übernommen. Importfunktionen müssen die erwartete Struktur selbst
+validieren. Unbekannte, nicht dekorierte Felder werden nicht übernommen.
+Ein Eingabewert muss ein einfaches JSON-Objekt sein (kein Array, `null`
+oder primitiver Wert). Das JSON wird nicht als öffentliches Feld abgelegt.
+Die neue API hat noch keinen separaten Export-Vertrag.
 
-Das Eingabe-JSON wird in einer `WeakMap` abgelegt, nicht als öffentliches
-Instanzfeld. Es gibt hier noch **keinen neuen Exportvertrag**.
+## Tests
 
-## Verständliche Tests
-
-`npm test` baut das Package und kompiliert die TypeScript-Beispiele in
-`tests/fixtures/JsonDecoratorExamples.ts` mittels
-`tsconfig.tests.json`. Die Node-Tests in
-`tests/json-decorators.test.mjs` prüfen die Checkliste: direkte
-Konstruktion, Defaults, Connection, Vererbung und Overrides,
-Initialisierungsreihenfolge, fehlende/unbekannte Werte und
-Constructor-Interface. Die vorhandenen Tests bleiben erhalten.
+`npm test` baut das Package und kompiliert die TypeScript-Fixtures via
+`tsconfig.tests.json`. Die gut lesbaren Node-Tests in
+`tests/json-decorators.test.mjs` prüfen direkte und komplexe Werte,
+Defaults, Alias-Schlüssel, Vererbung, Methoden-Overrides,
+Initialisierungsreihenfolge, unbekannte/ungültige Eingaben und Fehler
+bei fehlenden Importmethoden. Die vorherigen Tests bleiben erhalten.

@@ -109,17 +109,21 @@ src/
 ## Neuer optionaler Constructor-JSON-Import
 
 Neben der bisherigen Factory-/`importJson()`-Variante gibt es jetzt
-`AbstractJsonObject`, `@JsonField()`, `@JsonFunction("key")` und
+`AbstractJsonObject`, `@JsonField()` und
 `JsonConstructorInterface<T>`. Die bisherige Variante bleibt bestehen.
 
 ```ts
-import { AbstractJsonObject, JsonField, JsonFunction, type JsonDataType } from "@frxnklyn/datatypes";
+import { AbstractJsonObject, JsonField, type JsonDataType } from "@frxnklyn/datatypes";
+
+class Connection extends AbstractJsonObject {
+  @JsonField() provider = "local";
+}
 
 class Agent extends AbstractJsonObject {
   @JsonField() systemPrompt = "";
-  @JsonField() connection?: Connection = undefined;
+  @JsonField({ import: "createConnection" })
+  connection?: Connection = undefined;
 
-  @JsonFunction("connection")
   protected createConnection(json: JsonDataType): Connection {
     return new Connection(json);
   }
@@ -129,15 +133,27 @@ class CustomAgent extends Agent {
   @JsonField() temperature = 0.7;
 }
 
-const agent = new CustomAgent({ systemPrompt: "Kibo", temperature: 0.5 });
+const agent = new CustomAgent({
+  systemPrompt: "Kibo",
+  temperature: 0.5,
+  connection: { provider: "openai" },
+});
 ```
 
-Kein Class-Decorator, keine zusätzliche Factory und kein eigener
-Konstruktor in Unterklassen nötig. Für Funktionen muss ein zugehöriges
-`@JsonField()` existieren. **Wichtig:** Die Funktion läuft während der
-Feldinitialisierung, nicht nach Abschluss aller Konstruktoren.
+Nur **ein Decorator pro importiertem Feld**: `@JsonField()` für direkte
+Werte und `@JsonField({ import: "createConnection" })` für komplexe
+Konvertierungen. Es gibt keinen `@JsonFunction`-Decorator, keinen
+Class-Decorator, keinen eigenen Konstruktor und keine Pflicht-Factory in
+Unterklassen. Ein alternativer JSON-Schlüssel ist mit
+`@JsonField("system_prompt")` oder
+`@JsonField({ key: "connection_json", import: "createConnection" })`
+möglich.
 
-Detaillierte [Checkliste, Beispiele, Einschränkungen und Tests](docs/json-decorator-import.md).
+**Wichtig:** Eine Importmethode läuft während der Feldinitialisierung, nicht
+nach Abschluss aller Konstruktoren. `import` ist zurzeit ein Methodenname,
+dessen Existenz zur Laufzeit geprüft wird.
+
+Detaillierte [Checkliste, Beispiele und Tests](docs/json-decorator-import.md).
 Die weiteren Architekturpunkte stehen in [TODO.md](TODO.md).
 
 ## Gemeinsamer JSON-Import, Export und Factory-Basis

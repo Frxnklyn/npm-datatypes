@@ -1,47 +1,12 @@
 import type { JsonDataType } from "../json/JsonTypes.js";
 import { AbstractJsonObject, getJsonFieldInput } from "./AbstractJsonObject.js";
 
-const JSON_FUNCTION_KEY = Symbol("JsonFunction.key");
-type TaggedJsonFunction = ((input: JsonDataType) => unknown) & {
-  [JSON_FUNCTION_KEY]?: string;
-};
-
-/**
- * A converter for a matching @JsonField. Must RETURN the field's value.
- * Uses standard TypeScript 5+ decorators (not legacy experimentalDecorators).
- * A method without a matching decorated field is not run automatically.
- */
-export function JsonFunction(key: string) {
-  return function <This, Value extends JsonDataType, Result>(
-    method: (this: This, value: Value) => Result,
-    context: ClassMethodDecoratorContext<This, (this: This, value: Value) => Result>,
-  ): void {
-    if (context.static || context.private) {
-      throw new TypeError("@JsonFunction requires a non-private instance method");
-    }
-    Object.defineProperty(method, JSON_FUNCTION_KEY, { value: key });
-  };
-}
-
-/**
- * Scan child-to-parent. An undecorated override of a decorated parent method
- * is invoked by dynamic dispatch. A newly decorated child mapping wins.
- */
-function findJsonFunction(instance: object, key: string): TaggedJsonFunction | undefined {
-  for (let proto = Object.getPrototypeOf(instance); proto !== null; proto = Object.getPrototypeOf(proto)) {
-    for (const name of Object.getOwnPropertyNames(proto)) {
-      if (name === "constructor") continue;
-      const candidate: unknown = Object.getOwnPropertyDescriptor(proto, name)?.value;
-      if (typeof candidate !== "function") continue;
-      if ((candidate as TaggedJsonFunction)[JSON_FUNCTION_KEY] !== key) continue;
-      const effective: unknown = Reflect.get(instance, name);
-      if (typeof effective !== "function") {
-        throw new TypeError(`@JsonFunction method ${name} is not callable`);
-      }
-      return effective as TaggedJsonFunction;
-    }
-  }
-  return undefined;
+/** Configure a JSON-imported field without decorating its converter method. */
+export interface JsonFieldOptions {
+  /** Source JSON key. Defaults to the TypeScript field name. */
+  key?: string;
+  /** Instance method name: called with the raw JSON value, must return the field value. */
+  import?: string;
 }
 
 function isPlainRecord(value: unknown): value is Record<string, unknown> {
@@ -50,9 +15,9 @@ function isPlainRecord(value: unknown): value is Record<string, unknown> {
   return proto === Object.prototype || proto === null;
 }
 
-/** Shallow guard for direct fields; not a recursive runtime schema validator. */
+/** A shallow runtime guard for direct imports; nested schemas need validation. */
 function matchesDefault(initial: unknown, input: JsonDataType): boolean {
-  if (initial === undefined) return true; // Cannot infer the runtime type.
+  if (initial === undefined) return true; // No runtime type information.
   if (initial === null) return input === null;
   if (typeof initial === "number") return typeof input === "number" && Number.isFinite(input);
   if (typeof initial === "string" || typeof initial === "boolean") return typeof initial === typeof input;
@@ -62,11 +27,20 @@ function matchesDefault(initial: unknown, input: JsonDataType): boolean {
 }
 
 /**
- * Mark one instance field for JSON import. Defaults are retained if JSON is
- * missing or incompatible. A matching JsonFunction overrides direct mapping.
- * Inherited fields need no extra decorator in subclasses unless redeclared.
+ * Import a value during this class field's normal initialization.
+ *
+ * @JsonField()                      -> same-name JSON key, directly assigned
+ * @JsonField("system_prompt")       -> a different JSON key
+ * @JsonField({ import: "createConnection" })
+ *                                   -> call an instance method for conversion
+ * @JsonField({ key: "conn", import: "createConnection" })
+ *                                   -> both custom key and converter
+ *
+ * The converter returns the initialized field value; no @JsonFunction or
+ * class decorator is necessary. This runs before later fields initialize,
+ * and before subclass field initializers have run.
  */
-export function JsonField(key?: string) {
+export function JsonField(keyOrOptions?: string | JsonFieldOptions) {
   return function <This extends AbstractJsonObject, Value>(
     _field: undefined,
     context: ClassFieldDecoratorContext<This, Value>,
@@ -74,13 +48,24 @@ export function JsonField(key?: string) {
     if (context.static || context.private || typeof context.name !== "string") {
       throw new TypeError("@JsonField requires a non-private instance field");
     }
-    const jsonKey = key ?? context.name;
+    const options = typeof keyOrOptions === "string" ? { key: keyOrOptions } : keyOrOptions ?? {};
+    const jsonKey = options.key ?? context.name;
+    const importMethod = options.import;
+
     return function (this: This, initialValue: Value): Value {
       const input = getJsonFieldInput(this, jsonKey);
       if (!input.present) return initialValue;
 
-      const converter = findJsonFunction(this, jsonKey);
-      if (converter) return converter.call(this, input.value) as Value;
+      if (importMethod !== undefined) {
+        const method: unknown = Reflect.get(this, importMethod);
+        if (typeof method !== "function") {
+          throw new TypeError(
+            `@JsonField(${jsonKey}): import method "${importMethod}" is not callable`,
+          );
+        }
+        return Reflect.apply(method, this, [input.value]) as Value;
+      }
+
       if (!matchesDefault(initialValue, input.value)) return initialValue;
       return input.value as Value;
     };
