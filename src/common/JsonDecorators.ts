@@ -1,46 +1,72 @@
 import type { JsonDataType } from "../json/JsonTypes.js";
-import { AbstractJsonObject, getJsonFieldInput } from "./AbstractJsonObject.js";
+import { AbstractJsonObject, getJsonFieldInput, registerJsonField } from "./AbstractJsonObject.js";
 
-/** Configure a JSON-imported field without decorating its converter method. */
+/** One JSON import/export mapping for a decorated field. */
 export interface JsonFieldOptions {
-  /** Source JSON key. Defaults to the TypeScript field name. */
+  /** JSON key. Defaults to the decorated field name. */
   key?: string;
-  /** Instance method name: called with the raw JSON value, must return the field value. */
+  /** Instance method to convert (jsonValue, currentFieldValue) into a new value. */
   import?: string;
+  /** Export method called with the current field value; overrides automatic export. */
+  export?: string;
+  /** Smaller values run first; omitted order means 0. */
+  order?: number;
 }
 
-function isPlainRecord(value: unknown): value is Record<string, unknown> {
+/** Internal normalized mapping, registered when a field is initialized. */
+export interface JsonFieldMapping {
+  readonly key: string;
+  readonly import?: string;
+  readonly export?: string;
+  readonly order: number;
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
   if (value === null || typeof value !== "object" || Array.isArray(value)) return false;
   const proto: unknown = Object.getPrototypeOf(value);
   return proto === Object.prototype || proto === null;
 }
 
-/** A shallow runtime guard for direct imports; nested schemas need validation. */
-function matchesDefault(initial: unknown, input: JsonDataType): boolean {
-  if (initial === undefined) return true; // No runtime type information.
-  if (initial === null) return input === null;
-  if (typeof initial === "number") return typeof input === "number" && Number.isFinite(input);
-  if (typeof initial === "string" || typeof initial === "boolean") return typeof initial === typeof input;
-  if (Array.isArray(initial)) return Array.isArray(input);
-  if (typeof initial === "object") return isPlainRecord(initial) && isPlainRecord(input);
+/** Compatibility guard for direct assignments; nested schemas need converters. */
+function matchesDefault(current: unknown, incoming: JsonDataType): boolean {
+  if (current === undefined) return true;
+  if (current === null) return incoming === null;
+  if (typeof current === "number") return typeof incoming === "number" && Number.isFinite(incoming);
+  if (typeof current === "string" || typeof current === "boolean") return typeof current === typeof incoming;
+  if (Array.isArray(current)) return Array.isArray(incoming);
+  if (typeof current === "object") return isPlainObject(current) && isPlainObject(incoming);
   return false;
 }
 
+function mappingsFor(field: string, specification?: string | JsonFieldOptions | readonly JsonFieldOptions[]):
+  readonly JsonFieldMapping[] {
+  const specs: readonly JsonFieldOptions[] = typeof specification === "string"
+    ? [{ key: specification }]
+    : Array.isArray(specification) ? specification : [specification ?? {}];
+  if (specs.length === 0) throw new TypeError(`@JsonField(${field}) requires at least one mapping`);
+  return specs.map((entry, index) => {
+    const key = entry.key ?? field;
+    const order = entry.order ?? 0;
+    if (typeof key !== "string" || key.length === 0 || !Number.isFinite(order) ||
+        (entry.import !== undefined && (typeof entry.import !== "string" || entry.import.length === 0)) ||
+        (entry.export !== undefined && (typeof entry.export !== "string" || entry.export.length === 0))) {
+      throw new TypeError(`@JsonField(${field}) has an invalid mapping at index ${index}`);
+    }
+    return { key, order, import: entry.import, export: entry.export, index };
+  }).sort((a, b) => a.order - b.order || a.index - b.index)
+    .map(({ key, order, import: importMethod, export: exportMethod }) =>
+      Object.freeze({ key, order, import: importMethod, export: exportMethod }));
+}
+
 /**
- * Import a value during this class field's normal initialization.
- *
- * @JsonField()                      -> same-name JSON key, directly assigned
- * @JsonField("system_prompt")       -> a different JSON key
- * @JsonField({ import: "createConnection" })
- *                                   -> call an instance method for conversion
- * @JsonField({ key: "conn", import: "createConnection" })
- *                                   -> both custom key and converter
- *
- * The converter returns the initialized field value; no @JsonFunction or
- * class decorator is necessary. This runs before later fields initialize,
- * and before subclass field initializers have run.
+ * @JsonField() and @JsonField("json_key") preserve existing behavior.
+ * @JsonField({ import: "createConnection" }) converts a single value.
+ * @JsonField([{ key: "toolbox", import: "createToolBox", order: 10 },
+ *             { key: "tools", import: "addToolsToToolBox", order: 20 }])
+ * applies multiple keys to one field. The first sorted mapping controls export.
+ * This runs *during field initialization*, not at the end of construction.
  */
-export function JsonField(keyOrOptions?: string | JsonFieldOptions) {
+export function JsonField(specification?: string | JsonFieldOptions | readonly JsonFieldOptions[]) {
   return function <This extends AbstractJsonObject, Value>(
     _field: undefined,
     context: ClassFieldDecoratorContext<This, Value>,
@@ -48,26 +74,25 @@ export function JsonField(keyOrOptions?: string | JsonFieldOptions) {
     if (context.static || context.private || typeof context.name !== "string") {
       throw new TypeError("@JsonField requires a non-private instance field");
     }
-    const options = typeof keyOrOptions === "string" ? { key: keyOrOptions } : keyOrOptions ?? {};
-    const jsonKey = options.key ?? context.name;
-    const importMethod = options.import;
-
+    const field = context.name;
+    const ordered = mappingsFor(field, specification);
     return function (this: This, initialValue: Value): Value {
-      const input = getJsonFieldInput(this, jsonKey);
-      if (!input.present) return initialValue;
-
-      if (importMethod !== undefined) {
-        const method: unknown = Reflect.get(this, importMethod);
-        if (typeof method !== "function") {
-          throw new TypeError(
-            `@JsonField(${jsonKey}): import method "${importMethod}" is not callable`,
-          );
+      registerJsonField(this, field, ordered);
+      let current: Value = initialValue;
+      for (const entry of ordered) {
+        const input = getJsonFieldInput(this, entry.key);
+        if (!input.present) continue;
+        if (entry.import !== undefined) {
+          const method: unknown = Reflect.get(this, entry.import);
+          if (typeof method !== "function") {
+            throw new TypeError(`@JsonField(${field}): import method "${entry.import}" is not callable`);
+          }
+          current = Reflect.apply(method, this, [input.value, current]) as Value;
+        } else if (matchesDefault(current, input.value)) {
+          current = input.value as Value;
         }
-        return Reflect.apply(method, this, [input.value]) as Value;
       }
-
-      if (!matchesDefault(initialValue, input.value)) return initialValue;
-      return input.value as Value;
+      return current;
     };
   };
 }

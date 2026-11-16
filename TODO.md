@@ -15,7 +15,10 @@ Variante mit `AbstractImport`, `AbstractJsonMappable`,
       überlegen. TypeScript-Typen alleine validieren keine JSON-Werte.
 - [ ] Eine getrennte Importphase / Abhängigkeitsreihenfolge nur bei
       konkretem Bedarf für komplexe Objektgraphen designen.
-- [ ] Falls notwendig, neuen Constructor-Export-Vertrag entwickeln.
-      Nicht stillschweigend alte Export-Logik wiederverwenden.
+- [x] Separates `AbstractJsonObject.exportJson()` für dekorierte Felder
+      ergänzt; alte `AbstractJsonMappable`-Export-Logik bleibt unverändert.
+- [ ] Bei künftigem Import über mehrere *verschiedene* Felder eine eigene
+      Importphase/Abhängigkeitsplanung prüfen; `order` gilt derzeit nur
+      innerhalb eines Felds.
 - [ ] Migrationen von Kibo und Framelet getrennt und ausdrücklich
       planen, ohne bestehende Nutzer der alten Variante umzuschalten.

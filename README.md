@@ -106,55 +106,66 @@ src/
   index.ts
 ```
 
-## Neuer optionaler Constructor-JSON-Import
+## Optionaler Constructor-JSON-Import und -Export
 
-Neben der bisherigen Factory-/`importJson()`-Variante gibt es jetzt
-`AbstractJsonObject`, `@JsonField()` und
-`JsonConstructorInterface<T>`. Die bisherige Variante bleibt bestehen.
+`AbstractJsonObject` ist eine **additive Alternative** zur bisherigen
+`AbstractImport`-/`AbstractJsonMappable`-Factory-API. Klassen können
+direkt über `new AiAgent(json)` erstellt und ihre dekorierten Felder
+automatisch mit `exportJson()` serialisiert werden. Es ist **kein**
+Class-Decorator und kein eigener Konstruktor in Unterklassen erforderlich.
 
 ```ts
 import { AbstractJsonObject, JsonField, type JsonDataType } from "@frxnklyn/datatypes";
 
-class Connection extends AbstractJsonObject {
-  @JsonField() provider = "local";
+class ToolBox {
+  constructor(public tools: string[] = []) {}
+  exportJson() { return { tools: this.tools }; }
 }
 
-class Agent extends AbstractJsonObject {
+class AiAgent extends AbstractJsonObject {
   @JsonField() systemPrompt = "";
-  @JsonField({ import: "createConnection" })
-  connection?: Connection = undefined;
 
-  protected createConnection(json: JsonDataType): Connection {
-    return new Connection(json);
+  @JsonField([
+    { key: "toolbox", import: "createToolBox", order: 10 },
+    { key: "tools", import: "addToolsToToolBox", order: 20 },
+  ])
+  private toolBox = new ToolBox();
+
+  protected createToolBox(json: JsonDataType, current: ToolBox): ToolBox {
+    if (json === null || Array.isArray(json) || typeof json !== "object"
+        || !Array.isArray(json.tools)) throw new TypeError("Invalid toolbox");
+    return new ToolBox(json.tools as string[]);
+  }
+
+  protected addToolsToToolBox(json: JsonDataType, current: ToolBox): ToolBox {
+    if (!Array.isArray(json)) throw new TypeError("Invalid tools");
+    return new ToolBox([...current.tools, ...(json as string[])]);
   }
 }
 
-class CustomAgent extends Agent {
-  @JsonField() temperature = 0.7;
-}
-
-const agent = new CustomAgent({
-  systemPrompt: "Kibo",
-  temperature: 0.5,
-  connection: { provider: "openai" },
-});
+const agent = new AiAgent({ tools: ["search"] });
+agent.exportJson(); // { systemPrompt: "", toolbox: { tools: ["search"] } }
 ```
 
-Nur **ein Decorator pro importiertem Feld**: `@JsonField()` für direkte
-Werte und `@JsonField({ import: "createConnection" })` für komplexe
-Konvertierungen. Es gibt keinen `@JsonFunction`-Decorator, keinen
-Class-Decorator, keinen eigenen Konstruktor und keine Pflicht-Factory in
-Unterklassen. Ein alternativer JSON-Schlüssel ist mit
-`@JsonField("system_prompt")` oder
-`@JsonField({ key: "connection_json", import: "createConnection" })`
-möglich.
+`order` sortiert Zuordnungen **innerhalb eines Felds**: kleinere Werte
+zuerst, Gleichstand stabil nach Listeneintrag. Ohne `order` gilt `0`.
+Fehlende JSON-Schlüssel werden übersprungen; jede Importmethode erhält
+`(jsonValue, currentFieldValue)` und muss den neuen Wert zurückgeben.
 
-**Wichtig:** Eine Importmethode läuft während der Feldinitialisierung, nicht
-nach Abschluss aller Konstruktoren. `import` ist zurzeit ein Methodenname,
-dessen Existenz zur Laufzeit geprüft wird.
+Beim **Export wählt jedes Feld genau die erste sortierte Zuordnung**,
+unabhängig davon, welcher JSON-Key eingelesen wurde. Eine optionale
+`export: "exportToolBox"`-Methode erhält den Feldwert. Ohne sie wird
+`value.exportJson()` automatisch verwendet, sofern vorhanden; ansonsten
+wird ein JSON-kompatibler Wert übernommen. Arrays und verschachtelte Objekte
+werden rekursiv verarbeitet; undefinierte Felder werden ausgelassen,
+Zyklen und ungültige Werte mit Fehler abgelehnt.
 
-Detaillierte [Checkliste, Beispiele und Tests](docs/json-decorator-import.md).
-Die weiteren Architekturpunkte stehen in [TODO.md](TODO.md).
+Bestehende Varianten bleiben gültig:
+`@JsonField()`, `@JsonField("key")`,
+`@JsonField({ key: "key", import: "method" })`.
+Die volle [Checkliste und Dokumentation](docs/json-decorator-import.md)
+inklusive Vererbung, Export, Grenzen und Testfällen ist dort hinterlegt.
+Weitere Schritte: [TODO.md](TODO.md).
 
 ## Gemeinsamer JSON-Import, Export und Factory-Basis
 
