@@ -1,49 +1,45 @@
 import type { JsonConstructorInterface, JsonObject } from "../../src/index.js";
 
-interface AiFactoryInterface { readonly name: string; }
-interface KiboEngineClassInterface { readonly kind: string; }
-
-interface KiboEngineClassConstructor<
-  T extends KiboEngineClassInterface = KiboEngineClassInterface,
-  Args extends unknown[] = [],
-> extends JsonConstructorInterface<
-  T,
-  [factory: AiFactoryInterface, ...args: Args]
-> {}
-
 class Basic {
   constructor(public readonly json: JsonObject) {}
 }
 
 const basic: JsonConstructorInterface<Basic> = Basic;
-new basic({ name: "Kibo" });
-// @ts-expect-error Arrays are not JsonObject constructor inputs.
+new basic({ value: 1 });
+// @ts-expect-error Arrays cannot be used as JsonObject.
 new basic([1, 2]);
-// @ts-expect-error Null is not a JsonObject constructor input.
+// @ts-expect-error Null cannot be used as JsonObject.
 new basic(null);
 
-class KiboAgent implements KiboEngineClassInterface {
-  readonly kind = "agent";
+interface Factory { id: number }
+interface Item { readonly value: string }
+
+interface ItemConstructor<
+  T extends Item = Item,
+  Args extends unknown[] = [],
+> extends JsonConstructorInterface<T, [factory: Factory, ...args: Args]> {}
+
+class Extended implements Item {
+  readonly value = "test";
   constructor(
     public readonly json: JsonObject,
-    public readonly factory: AiFactoryInterface,
-    public readonly attempts: number,
-    public readonly name: string,
+    public readonly factory: Factory,
+    public readonly count: number,
   ) {}
 }
 
-const ctor: KiboEngineClassConstructor<KiboAgent, [attempts: number, name: string]> = KiboAgent;
-const agent = new ctor({ kind: "agent" }, { name: "local" }, 3, "assistant");
-const kind: string = agent.kind;
-void kind;
-// @ts-expect-error The factory argument is required.
-new ctor({ kind: "agent" }, 3, "assistant");
-// @ts-expect-error Attempt count is a number.
-new ctor({ kind: "agent" }, { name: "local" }, "3", "assistant");
+const ctor: ItemConstructor<Extended, [count: number]> = Extended;
+const result = new ctor({ value: 1 }, { id: 1 }, 3);
+const value: string = result.value;
+void value;
+// @ts-expect-error Factory argument is required.
+new ctor({ value: 1 }, 3);
+// @ts-expect-error Count is a number.
+new ctor({ value: 1 }, { id: 1 }, "3");
 
 interface WrongConstructor {
   new (json: string): Basic;
 }
-// @ts-expect-error String-only constructor cannot satisfy the JsonObject contract.
+// @ts-expect-error String-only constructor cannot satisfy JsonObject contract.
 const invalid: JsonConstructorInterface<Basic> = null as unknown as WrongConstructor;
 void invalid;

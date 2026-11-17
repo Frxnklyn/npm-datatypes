@@ -108,40 +108,27 @@ src/
 
 ## JSON-Konstruktor-Vertrag
 
-`JsonConstructorInterface<T, Args>` deklariert Konstruktoren, die ein
-JSON-Objekt und optional weitere Argumente entgegennehmen. `JsonObject`
-ist bereits in `src/json/JsonTypes.ts` definiert; `JsonDataType` dagegen
-erlaubt auch Arrays, primitive Werte und `null`.
+`JsonConstructorInterface<T, Args>` beschreibt einen Konstruktor mit
+einem JSON-Objekt und optionalen weiteren Argumenten. Der Typ
+`JsonObject` ist bereits enthalten und schließt Arrays und primitive
+JSON-Werte auf TypeScript-Ebene aus.
 
 ```ts
 import type { JsonConstructorInterface, JsonObject } from "@frxnklyn/datatypes";
 
-interface AiFactoryInterface { readonly id: string; }
-
-interface AiAgentInterface { readonly name: string; }
-
-interface KiboEngineClassConstructor<
-  T extends AiAgentInterface = AiAgentInterface,
-  Args extends unknown[] = [],
-> extends JsonConstructorInterface<
-  T,
-  [factory: AiFactoryInterface, ...args: Args]
-> {}
-
-class Agent implements AiAgentInterface {
-  name: string;
-  constructor(json: JsonObject, factory: AiFactoryInterface) {
-    this.name = String(json.name ?? factory.id);
-  }
+class Example {
+  constructor(json: JsonObject, count: number) {}
 }
 
-const AgentConstructor: KiboEngineClassConstructor<AiAgentInterface> = Agent;
-new AgentConstructor({ name: "Kibo" }, { id: "local" });
+const Constructor: JsonConstructorInterface<Example, [count: number]> = Example;
+const instance = new Constructor({ value: 1 }, 2);
 ```
 
-Das Interface ist ein **Typvertrag**, keine Runtime-Validierung.
-Die konkrete Implementierung von `AbstractJsonObject`, `@JsonField`,
-Import und Export gehört in das separate Paket
+`Args` ist optional und standardmäßig `[]`. Für mehrere zusätzliche
+Parameter kann z. B. `[name: string, count: number]` verwendet werden.
+
+Das Interface prüft keine JSON-Daten zur Laufzeit. Die Implementierung
+von Import, Export und Decorators liegt im separaten Paket
 [`@frxnklyn/json-mapper`](https://github.com/Frxnklyn/npm-json-mapper).
 
 ## Common
