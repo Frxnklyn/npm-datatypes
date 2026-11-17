@@ -106,150 +106,43 @@ src/
   index.ts
 ```
 
-## Optionaler Constructor-JSON-Import und -Export
+## JSON-Konstruktor-Vertrag
 
-`AbstractJsonObject` ist eine **additive Alternative** zur bisherigen
-`AbstractImport`-/`AbstractJsonMappable`-Factory-API. Klassen können
-direkt über `new AiAgent(json)` erstellt und ihre dekorierten Felder
-automatisch mit `exportJson()` serialisiert werden. Es ist **kein**
-Class-Decorator und kein eigener Konstruktor in Unterklassen erforderlich.
-
-```ts
-import { AbstractJsonObject, JsonField, type JsonDataType } from "@frxnklyn/datatypes";
-
-class ToolBox {
-  constructor(public tools: string[] = []) {}
-  exportJson() { return { tools: this.tools }; }
-}
-
-class AiAgent extends AbstractJsonObject {
-  @JsonField() systemPrompt = "";
-
-  @JsonField([
-    { key: "toolbox", import: "createToolBox", order: 10 },
-    { key: "tools", import: "addToolsToToolBox", order: 20 },
-  ])
-  private toolBox = new ToolBox();
-
-  protected createToolBox(json: JsonDataType, current: ToolBox): ToolBox {
-    if (json === null || Array.isArray(json) || typeof json !== "object"
-        || !Array.isArray(json.tools)) throw new TypeError("Invalid toolbox");
-    return new ToolBox(json.tools as string[]);
-  }
-
-  protected addToolsToToolBox(json: JsonDataType, current: ToolBox): ToolBox {
-    if (!Array.isArray(json)) throw new TypeError("Invalid tools");
-    return new ToolBox([...current.tools, ...(json as string[])]);
-  }
-}
-
-const agent = new AiAgent({ tools: ["search"] });
-agent.exportJson(); // { systemPrompt: "", toolbox: { tools: ["search"] } }
-```
-
-`order` sortiert Zuordnungen **innerhalb eines Felds**: kleinere Werte
-zuerst, Gleichstand stabil nach Listeneintrag. Ohne `order` gilt `0`.
-Fehlende JSON-Schlüssel werden übersprungen; jede Importmethode erhält
-`(jsonValue, currentFieldValue)` und muss den neuen Wert zurückgeben.
-
-Beim **Export wählt jedes Feld genau die erste sortierte Zuordnung**,
-unabhängig davon, welcher JSON-Key eingelesen wurde. Eine optionale
-`export: "exportToolBox"`-Methode erhält den Feldwert. Ohne sie wird
-`value.exportJson()` automatisch verwendet, sofern vorhanden; ansonsten
-wird ein JSON-kompatibler Wert übernommen. Arrays und verschachtelte Objekte
-werden rekursiv verarbeitet; undefinierte Felder werden ausgelassen,
-Zyklen und ungültige Werte mit Fehler abgelehnt.
-
-Bestehende Varianten bleiben gültig:
-`@JsonField()`, `@JsonField("key")`,
-`@JsonField({ key: "key", import: "method" })`.
-Die volle [Checkliste und Dokumentation](docs/json-decorator-import.md)
-inklusive Vererbung, Export, Grenzen und Testfällen ist dort hinterlegt.
-Weitere Schritte: [TODO.md](TODO.md).
-
-## Gemeinsamer JSON-Import, Export und Factory-Basis
-
-Fuer Kibo, Framelet und andere Packages stehen drei Interfaces bereit:
-
-- `ImportInterface`: `importJson(json: JsonDataType): this`.
-- `ExportInterface`: `exportJson(): JsonDataType`.
-- `JsonMappableInterface`: erweitert beide Interfaces, ohne ihre Methoden zu duplizieren.
-
-`AbstractImport` implementiert **nur** den Import. Die Klasse
-`AbstractJsonMappable` erbt von `AbstractImport` und implementiert
-zusaetzlich den Export. Wer beides braucht, erweitert daher
-`AbstractJsonMappable`; wer nur importieren will, kann `AbstractImport`
-direkt erweitern. Eine eigene `AbstractExport` ist nicht erforderlich.
+`JsonConstructorInterface<T, Args>` deklariert Konstruktoren, die ein
+JSON-Objekt und optional weitere Argumente entgegennehmen. `JsonObject`
+ist bereits in `src/json/JsonTypes.ts` definiert; `JsonDataType` dagegen
+erlaubt auch Arrays, primitive Werte und `null`.
 
 ```ts
-import {
-  AbstractImport,
-  AbstractJsonMappable,
-  AbstractFactory,
-  type JsonDataType,
-} from "@frxnklyn/datatypes";
+import type { JsonConstructorInterface, JsonObject } from "@frxnklyn/datatypes";
 
-class ImportOnly extends AbstractImport {
-  enabled = true;
-}
+interface AiFactoryInterface { readonly id: string; }
 
-class Frame extends AbstractJsonMappable {
-  width = 100;
-}
+interface AiAgentInterface { readonly name: string; }
 
-class TextFrame extends Frame {
-  text = "";
-}
+interface KiboEngineClassConstructor<
+  T extends AiAgentInterface = AiAgentInterface,
+  Args extends unknown[] = [],
+> extends JsonConstructorInterface<
+  T,
+  [factory: AiFactoryInterface, ...args: Args]
+> {}
 
-class FrameFactory extends AbstractFactory {
-  createText(json: JsonDataType): TextFrame {
-    return this.create(new TextFrame(), json);
-  }
-
-  static createText(json: JsonDataType): TextFrame {
-    return this.create(new TextFrame(), json);
+class Agent implements AiAgentInterface {
+  name: string;
+  constructor(json: JsonObject, factory: AiFactoryInterface) {
+    this.name = String(json.name ?? factory.id);
   }
 }
 
-const onlyImport = new ImportOnly().importJson({ enabled: false });
-const frame = FrameFactory.createText({ width: 400, text: "Hallo" });
-const json = frame.exportJson(); // { width: 400, text: "Hallo" }
+const AgentConstructor: KiboEngineClassConstructor<AiAgentInterface> = Agent;
+new AgentConstructor({ name: "Kibo" }, { id: "local" });
 ```
 
-Der Konstruktor braucht kein JSON: Zuerst wird die Klasse vollstaendig
-initialisiert, anschliessend ruft die Factory `importJson(json)` auf.
-Importiert werden nur bereits initialisierte, typkompatible Instanzfelder
-(einschliesslich geerbter Felder). Unbekannte oder unpassende Werte werden
-ignoriert; das Quell-JSON wird nicht gespeichert. `JsonDataType` ist ein
-Alias fuer den bestehenden `JsonValue`-Typ.
-
-`AbstractJsonMappable.exportJson()` liest dagegen den **aktuellen Zustand**
-freigegebener Klassenvariablen und erstellt eine unabhaengige JSON-Kopie.
-Nicht serialisierbare Werte wie Funktionen, `undefined`, `Date`,
-`NaN` und Zyklen werden ausgelassen. Import und Export verwenden dieselbe
-Freigabeliste `getImportableKeys()`.
-
-**Grenzen:** Der Import prueft Arrays und Objekte nur oberflaechlich, nicht
-deren innere Struktur, und uebernimmt diese Werte als Referenz. Felder, die
-mit `undefined` beginnen, koennen nicht automatisch typisiert werden.
-Bei nicht vertrauenswuerdigem JSON oder internen Feldern sollte die Klasse
-erlaubte Schluessel explizit freigeben:
-
-```ts
-class SafeFrame extends AbstractJsonMappable {
-  width = 100;
-  private internalId = "fixed";
-
-  protected override getImportableKeys(): readonly string[] {
-    return ["width"];
-  }
-}
-```
-
-`AbstractFactory` bleibt unveraendert minimal: Eine geschuetzte normale
-und eine geschuetzte statische `create<T extends ImportInterface>(instance, json)`
-geben jeweils ausschliesslich `instance.importJson(json)` zurueck. Die
-Factory selbst hat keine Export-Logik und bewahrt den konkreten Rueckgabetyp.
+Das Interface ist ein **Typvertrag**, keine Runtime-Validierung.
+Die konkrete Implementierung von `AbstractJsonObject`, `@JsonField`,
+Import und Export gehört in das separate Paket
+[`@frxnklyn/json-mapper`](https://github.com/Frxnklyn/npm-json-mapper).
 
 ## Common
 

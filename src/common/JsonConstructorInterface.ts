@@ -1,6 +1,12 @@
-import type { JsonDataType } from "../json/JsonTypes.js";
+import type { JsonObject } from "../json/JsonTypes.js";
 
-/** The required new (json) signature for constructor-based JSON models. */
-export interface JsonConstructorInterface<T> {
-  new (json: JsonDataType): T;
+/**
+ * Constructor contract for a JSON object plus optional positional arguments.
+ * A type-only interface: callers should validate untrusted runtime input.
+ */
+export interface JsonConstructorInterface<
+  T,
+  Args extends unknown[] = [],
+> {
+  new (json: JsonObject, ...args: Args): T;
 }
