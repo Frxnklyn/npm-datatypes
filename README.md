@@ -106,89 +106,30 @@ src/
   index.ts
 ```
 
-## Gemeinsamer JSON-Import, Export und Factory-Basis
+## JSON-Konstruktor-Vertrag
 
-Fuer Kibo, Framelet und andere Packages stehen drei Interfaces bereit:
-
-- `ImportInterface`: `importJson(json: JsonDataType): this`.
-- `ExportInterface`: `exportJson(): JsonDataType`.
-- `JsonMappableInterface`: erweitert beide Interfaces, ohne ihre Methoden zu duplizieren.
-
-`AbstractImport` implementiert **nur** den Import. Die Klasse
-`AbstractJsonMappable` erbt von `AbstractImport` und implementiert
-zusaetzlich den Export. Wer beides braucht, erweitert daher
-`AbstractJsonMappable`; wer nur importieren will, kann `AbstractImport`
-direkt erweitern. Eine eigene `AbstractExport` ist nicht erforderlich.
+`JsonConstructorInterface<T, Args>` beschreibt einen Konstruktor mit
+einem JSON-Objekt und optionalen weiteren Argumenten. Der Typ
+`JsonObject` ist bereits enthalten und schließt Arrays und primitive
+JSON-Werte auf TypeScript-Ebene aus.
 
 ```ts
-import {
-  AbstractImport,
-  AbstractJsonMappable,
-  AbstractFactory,
-  type JsonDataType,
-} from "@frxnklyn/datatypes";
+import type { JsonConstructorInterface, JsonObject } from "@frxnklyn/datatypes";
 
-class ImportOnly extends AbstractImport {
-  enabled = true;
+class Example {
+  constructor(json: JsonObject, count: number) {}
 }
 
-class Frame extends AbstractJsonMappable {
-  width = 100;
-}
-
-class TextFrame extends Frame {
-  text = "";
-}
-
-class FrameFactory extends AbstractFactory {
-  createText(json: JsonDataType): TextFrame {
-    return this.create(new TextFrame(), json);
-  }
-
-  static createText(json: JsonDataType): TextFrame {
-    return this.create(new TextFrame(), json);
-  }
-}
-
-const onlyImport = new ImportOnly().importJson({ enabled: false });
-const frame = FrameFactory.createText({ width: 400, text: "Hallo" });
-const json = frame.exportJson(); // { width: 400, text: "Hallo" }
+const Constructor: JsonConstructorInterface<Example, [count: number]> = Example;
+const instance = new Constructor({ value: 1 }, 2);
 ```
 
-Der Konstruktor braucht kein JSON: Zuerst wird die Klasse vollstaendig
-initialisiert, anschliessend ruft die Factory `importJson(json)` auf.
-Importiert werden nur bereits initialisierte, typkompatible Instanzfelder
-(einschliesslich geerbter Felder). Unbekannte oder unpassende Werte werden
-ignoriert; das Quell-JSON wird nicht gespeichert. `JsonDataType` ist ein
-Alias fuer den bestehenden `JsonValue`-Typ.
+`Args` ist optional und standardmäßig `[]`. Für mehrere zusätzliche
+Parameter kann z. B. `[name: string, count: number]` verwendet werden.
 
-`AbstractJsonMappable.exportJson()` liest dagegen den **aktuellen Zustand**
-freigegebener Klassenvariablen und erstellt eine unabhaengige JSON-Kopie.
-Nicht serialisierbare Werte wie Funktionen, `undefined`, `Date`,
-`NaN` und Zyklen werden ausgelassen. Import und Export verwenden dieselbe
-Freigabeliste `getImportableKeys()`.
-
-**Grenzen:** Der Import prueft Arrays und Objekte nur oberflaechlich, nicht
-deren innere Struktur, und uebernimmt diese Werte als Referenz. Felder, die
-mit `undefined` beginnen, koennen nicht automatisch typisiert werden.
-Bei nicht vertrauenswuerdigem JSON oder internen Feldern sollte die Klasse
-erlaubte Schluessel explizit freigeben:
-
-```ts
-class SafeFrame extends AbstractJsonMappable {
-  width = 100;
-  private internalId = "fixed";
-
-  protected override getImportableKeys(): readonly string[] {
-    return ["width"];
-  }
-}
-```
-
-`AbstractFactory` bleibt unveraendert minimal: Eine geschuetzte normale
-und eine geschuetzte statische `create<T extends ImportInterface>(instance, json)`
-geben jeweils ausschliesslich `instance.importJson(json)` zurueck. Die
-Factory selbst hat keine Export-Logik und bewahrt den konkreten Rueckgabetyp.
+Das Interface prüft keine JSON-Daten zur Laufzeit. Die Implementierung
+von Import, Export und Decorators liegt im separaten Paket
+[`@frxnklyn/json-mapper`](https://github.com/Frxnklyn/npm-json-mapper).
 
 ## Common
 
